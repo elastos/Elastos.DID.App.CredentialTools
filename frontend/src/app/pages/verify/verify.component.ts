@@ -229,7 +229,6 @@ export class VerifyComponent {
 
   private handleJsonLdParsingError(e: any) {
     this.parseResult = "error";
-    debugger;
 
     if (e.hasOwnProperty("details")) {
       let jsonLdError = e as JsonLdError;
