@@ -7,10 +7,15 @@
       <textarea matInput [(ngModel)]="credentialContent" placeholder="Paste your credential JSON data here"
         autocorrect="off" spellcheck="false" (input)="onCredentialContentChanged($event.target)"></textarea>
     </mat-form-field>
+
+    <div class="samples">
+      <button mat-raised-button (click)="useDiplomaSample()">Diploma sample</button>
+    </div>
   </div>
   <div class="preview">
     <div class="status">
       <h2>Result</h2>
+      <mat-progress-spinner *ngIf="verifying" diameter="20" color="color" mode="indeterminate"></mat-progress-spinner>
       <div class="success" *ngIf="parseResult == 'success'">
         <div class="row message">
           <div class="label">Success</div>
@@ -34,7 +39,7 @@
         </div>
       </div>
     </div>
-    <div class="result-content" *ngIf="!error">
+    <div class="result-content" *ngIf="parseResult !== 'error'">
       <div class="row">
         <h2>Result Preview</h2>
         <mat-form-field appearance="fill" class="parse-mode-select">

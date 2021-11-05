@@ -15,7 +15,7 @@ export class HomeComponent {
   }
 
   async ngAfterViewInit() {
-    this.latestCredentials = await this.credentialsService.searchCredentialTypes();
+    this.fetchCredentialTypes();
   }
 
   public getCredentialTypeMainProperties(credential: CredentialType): string[] {
@@ -24,5 +24,18 @@ export class HomeComponent {
 
     const excludedKeys = ["schema", "xsd", "@version", credential.type];
     return Object.keys(credential.value["@context"]).filter(k => excludedKeys.indexOf(k) < 0);
+  }
+
+  public async onSearchValueChanged(event: any) {
+    this.fetchCredentialTypes();
+  }
+
+  public clearSearch() {
+    this.searchValue = '';
+    this.fetchCredentialTypes();
+  }
+
+  private async fetchCredentialTypes() {
+    this.latestCredentials = await this.credentialsService.searchCredentialTypes(this.searchValue);
   }
 }

@@ -7,6 +7,7 @@ import { Url } from 'jsonld/jsonld-spec';
 import { prettyPrintJson } from 'pretty-print-json';
 import { BuildService } from 'src/app/services/build.service';
 import { CredentialsService } from 'src/app/services/credentials.service';
+import diplomaCredential from "src/assets/samples/credentials/diploma.json";
 
 type JsonLdError = {
   details: {
@@ -39,6 +40,12 @@ class InvalidJsonError extends JsonLdParsingError {
   }
 }
 
+class InvalidCredentialSubjectError extends Error {
+  constructor() {
+    super("Empty or invalid credential subject");
+  }
+}
+
 @Component({
   selector: 'app-verify',
   templateUrl: './verify.component.html',
@@ -51,6 +58,7 @@ export class VerifyComponent {
   public parseResult: "error" | "success" | "warning" | "idle" = "idle";
   public error: JsonLdParsingError = null;
   public previewDisplayMode = "compact";
+  public verifying = false;
 
   constructor(
     private _bottomSheet: MatBottomSheet,
@@ -73,11 +81,23 @@ export class VerifyComponent {
     // Reset the previous error
     this.parseResult = "idle";
 
-    if (!this.credentialContent || this.credentialContent === "")
+    if (!this.credentialContent || this.credentialContent === "") {
+      this.codePreviewHtml = "";
       return;
+    }
+
+    this.verifying = true;
 
     try {
       let credentialContentJson = JSON.parse(this.credentialContent);
+
+      // Make sure we have "https://www.w3.org/2018/credentials/v1" has first entry in the context,
+      // this is a W3C spec requirement
+      if (!("@context" in credentialContentJson) || credentialContentJson["@context"].indexOf("https://www.w3.org/2018/credentials/v1") !== 0) {
+        this.handleJsonLdParsingError(new Error("No @context found, or 'https://www.w3.org/2018/credentials/v1' is missing as first entry of your @context"));
+        this.verifying = false;
+        return;
+      }
 
       if (this.previewDisplayMode === "compact") {
         let compacted = await jsonld.compact(credentialContentJson, credentialContentJson["@context"], {
@@ -85,6 +105,16 @@ export class VerifyComponent {
         });
 
         if (compacted) {
+          console.log("Compacted:", compacted);
+
+          // If the credential subject is empty (only id), JsonLD returns credentialSubject: "theid".
+          // We turn this back to an object for our display to work better right after.
+          if (!compacted.hasOwnProperty("credentialSubject") || typeof compacted["credentialSubject"] === "string") {
+            compacted.credentialSubject = {
+              id: compacted.credentialSubject
+            }
+          }
+
           // Check what original fields are missing after compacting to visually show this
           // problem to the user.
           let { modifiedDoc, warningsGenerated } = this.addMissingFieldsToCompactHtmlResult(credentialContentJson, compacted);
@@ -129,18 +159,31 @@ export class VerifyComponent {
       console.error(e)
       this.handleJsonLdParsingError(e);
     }
+
+    this.verifying = false;
   }
 
   // TODO: RECURSIVE
   private addMissingFieldsToCompactHtmlResult(originalUserDoc: any, compactedDoc: any): { modifiedDoc: NodeObject, warningsGenerated: boolean } {
     let warningsGenerated = false;
     let modifiedCompactedDoc = Object.assign({}, compactedDoc);
+
+    // Credential subject
     for (let key of Object.keys(originalUserDoc.credentialSubject)) {
       if (!(key in compactedDoc.credentialSubject)) {
         modifiedCompactedDoc.credentialSubject["MISSING_KEY_" + key] = "This field is missing in credential types";
         warningsGenerated = true;
       }
     }
+
+    // Proof
+    for (let key of Object.keys(originalUserDoc.proof)) {
+      if (!(key in compactedDoc.proof)) {
+        modifiedCompactedDoc.proof["MISSING_KEY_" + key] = "This field is missing in credential types";
+        warningsGenerated = true;
+      }
+    }
+
     return {
       modifiedDoc: modifiedCompactedDoc,
       warningsGenerated
@@ -149,28 +192,32 @@ export class VerifyComponent {
 
   private buildElastosJsonLdDocLoader(): { (url: Url, callback: any): Promise<any> } {
     return (url: Url, callback: any) => {
-      return new Promise(async resolve => {
-        if (url.startsWith("did")) {
-          console.log("Loader is resolving url using our DID loader", url);
+      return new Promise(async (resolve, reject) => {
+        try {
+          if (url.startsWith("did")) {
+            console.log("Loader is resolving url using our DID loader", url);
 
-          // NOTE: this is temporary while we don't store credentials on chain. Replace this with
-          // chain resolving later.
-          // Convert urls such as: did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
-          // into local toolbox API call: http://apiurl/api/v1/credentialTypeByUrl?url=did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
-          let credentialTypeData = await this.credentialsService.getCredentialTypeByUrl(url);
-          console.log("Received data", credentialTypeData)
-          resolve({
-            contextUrl: null,
-            documentUrl: url,
-            document: credentialTypeData
-          });
+            // NOTE: this is temporary while we don't store credentials on chain. Replace this with
+            // chain resolving later.
+            // Convert urls such as: did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
+            // into local toolbox API call: http://apiurl/api/v1/credentialTypeByUrl?url=did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
+            let credentialTypeData = await this.credentialsService.getCredentialTypeByUrl(url);
+            resolve({
+              contextUrl: null,
+              documentUrl: url,
+              document: credentialTypeData
+            });
+          }
+          else {
+            console.log("Loader is resolving url using default jsonld loader", url);
+            let defaultLoader = (jsonld as any).documentLoaders.xhr();
+            let data = await defaultLoader(url);
+            console.log("Default data:", data)
+            resolve(data);
+          }
         }
-        else {
-          console.log("Loader is resolving url using default jsonld loader", url);
-          let defaultLoader = (jsonld as any).documentLoaders.xhr();
-          let data = await defaultLoader(url);
-          console.log("Default data:", data)
-          resolve(data);
+        catch (e) {
+          reject(e);
         }
       });
     }
@@ -182,10 +229,12 @@ export class VerifyComponent {
 
   private handleJsonLdParsingError(e: any) {
     this.parseResult = "error";
+    debugger;
 
     if (e.hasOwnProperty("details")) {
       let jsonLdError = e as JsonLdError;
       console.warn("JSONLD specific error", jsonLdError.name, jsonLdError.details.url);
+
 
       if (jsonLdError.name === "jsonld.InvalidUrl") {
         this.error = new UrlUnreachableError("A url is possibly unreachable.", jsonLdError.details.url);
@@ -199,8 +248,12 @@ export class VerifyComponent {
 
       if (new String(e).indexOf("Unexpected token") >= 0)
         this.error = new InvalidJsonError("JSON syntax error, make sure your json is valid.");
-      else
-        throw new Error("Unhandled other error type: " + e);
+      else if (e instanceof InvalidCredentialSubjectError) {
+        this.error = e;
+      }
+      else {
+        this.error = e;
+      }
     }
   }
 
@@ -214,5 +267,10 @@ export class VerifyComponent {
 
   public getGenericErrorMessage(): string {
     return this.error.message;
+  }
+
+  public useDiplomaSample() {
+    this.credentialContent = JSON.stringify(diplomaCredential, null, 3);
+    this.verify();
   }
 }

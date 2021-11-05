@@ -83,7 +83,8 @@ export class BuildComponent {
     this.credentialId = this.buildService.generateCredentialId(this.credentialType);
     this.credentialTypeJson = this.buildService.buildCredentialTypeJson(this.credentialId, this.credentialType, this.fields);
     this.codePreviewHtml = prettyPrintJson.toHtml(this.credentialTypeJson, {
-      quoteKeys: true
+      quoteKeys: true,
+      linkUrls: false
     });
   }
 

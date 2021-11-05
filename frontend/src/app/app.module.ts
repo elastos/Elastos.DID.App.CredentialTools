@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBarModule } from "@angular/material/snack-bar";
 import { BrowserModule } from '@angular/platform-browser';
@@ -41,6 +42,7 @@ import { VerifyComponent } from './pages/verify/verify.component';
     MatSnackBarModule,
     MatGridListModule,
     MatSelectModule,
+    MatProgressSpinnerModule,
     FormsModule,
     MatIconModule,
     ComponentsModule,

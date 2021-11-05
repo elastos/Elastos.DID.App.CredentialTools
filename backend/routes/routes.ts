@@ -72,29 +72,6 @@ router.get('/currentUser', (req, res) => {
     res.json({ code: 200, message: 'success', data: req.user })
 })
 
-// eslint-disable-next-line @typescript-eslint/no-misused-promises
-/* router.get('/users/list', async (req, res) => {
-    let pageNumStr = req.query.pageNum as string;
-    let pageSizeStr = req.query.pageSize as string;
-    let search = req.query.search as string;
-
-    try {
-        let pageNum: number = pageNumStr ? parseInt(pageNumStr) : 1;
-        let pageSize: number = pageSizeStr ? parseInt(pageSizeStr) : 10;
-
-        if (pageNum < 1 || pageSize < 1) {
-            res.json({ code: 400, message: 'Invalid page number or page size' })
-            return;
-        }
-
-        res.json(await dbService.listUsers(search, pageNum, pageSize));
-    } catch (e) {
-        console.log(e);
-        res.json({ code: 400, message: 'bad request' });
-        return;
-    }
-}) */
-
 /**
  * Publish a new credential type
  */
@@ -129,7 +106,8 @@ router.get('/credentialTypeByUrl', async (req, res) => {
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 router.get('/credentialtypes', async (req, res) => {
-    res.json(await dbService.getCredentialTypes());
+    let search = (req.query.search || "") as string;
+    res.json(await dbService.getCredentialTypes(search));
 });
 
 export default router;

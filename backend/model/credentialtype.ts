@@ -6,4 +6,5 @@ export type CredentialType = {
   id: string; // simulation for the credential type's containing credential ID
   type: string; // simulation for the credential type's containing credential credential type as defined by the user
   value: JSONObject; // Credential payload (containing credential's subject)
+  keywords: string[]; // List of extracted keywords, used to search inside credentials.
 }

@@ -8,9 +8,9 @@ import { AuthService } from './auth.service';
 export class CredentialsService {
   constructor(public auth: AuthService) { }
 
-  public searchCredentialTypes(): Promise<CredentialType[]> {
+  public searchCredentialTypes(search?: string): Promise<CredentialType[]> {
     return new Promise(resolve => {
-      fetch(`${process.env.NG_APP_API_URL}/api/v1/credentialtypes`, {
+      fetch(`${process.env.NG_APP_API_URL}/api/v1/credentialtypes?search=${search || ""}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json"

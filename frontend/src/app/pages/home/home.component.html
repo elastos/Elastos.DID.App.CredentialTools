@@ -5,8 +5,8 @@
   <div class="card-container">
     <mat-form-field class="search-form-field" appearance="fill">
       <mat-label>Search credential types</mat-label>
-      <input matInput type="text" [(ngModel)]="searchValue">
-      <button *ngIf="searchValue" matSuffix mat-icon-button aria-label="Clear" (click)="searchValue=''">
+      <input matInput type="text" [(ngModel)]="searchValue" (input)="onSearchValueChanged($event.target)">
+      <button *ngIf="searchValue" matSuffix mat-icon-button aria-label="Clear" (click)="clearSearch()">
         <mat-icon>close</mat-icon>
       </button>
     </mat-form-field>

@@ -103,17 +103,47 @@ class DBService {
         }
     }
 
+    /**
+     * Finds relevant fields that we want to search on in the future, and returns a
+     * list of searchable strings. Recursive.
+     */
+    private extractCredentialTypeKeywords(json: JSONObject): string[] {
+        let keywords: string[] = [];
+        let excludedWords = [ // Don't add those strings to the list
+            "@context", "id", "type", "credentialSubject", "@id",
+            "@type", "schema", "xsd", "@version"
+        ];
+        for (let field of Object.keys(json)) {
+            if (excludedWords.indexOf(field) < 0) {
+                keywords.push(field);
+            }
+
+            // Recurse
+            if (typeof json[field] === "object") {
+                keywords = keywords.concat(this.extractCredentialTypeKeywords(json[field] as JSONObject));
+            }
+        }
+        return keywords;
+    }
+
     public async publishCredentialType(did: string, id: string, type: string, credentialType: JSONObject): Promise<CommonResponse<void>> {
         try {
             await this.client.connect();
             const credentialsTypesCollection = this.client.db().collection<CredentialType>('credential_types');
+
+            let keywords = this.extractCredentialTypeKeywords(credentialType);
+            // Append publisher's did to the keywords
+            keywords.push(did);
+
+            console.log("Created keywords:", keywords);
 
             await credentialsTypesCollection.insertOne({
                 publisher: did,
                 publishDate: Date.now() / 1000,
                 id,
                 type,
-                value: credentialType
+                value: credentialType,
+                keywords
             });
 
             return { code: 200, message: 'success' };
@@ -156,12 +186,19 @@ class DBService {
         }
     }
 
-    public async getCredentialTypes(): Promise<CommonResponse<CredentialType[]>> {
+    public async getCredentialTypes(search: string): Promise<CommonResponse<CredentialType[]>> {
         try {
             await this.client.connect();
             const credentialsTypesCollection = this.client.db().collection<CredentialType>('credential_types');
 
-            let credentialTypes = await credentialsTypesCollection.find().sort({ publishDate: -1 }).toArray();
+            let credentialTypes = await credentialsTypesCollection.find({
+                keywords: {
+                    $regex: new RegExp(search, "i")
+                }
+                /* $text: {
+                    $search: search
+                } */
+            }).limit(30).sort({ publishDate: -1 }).toArray();
             return { code: 200, message: 'success', data: credentialTypes };
         } catch (err) {
             logger.error(err);
