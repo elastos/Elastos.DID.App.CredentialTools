@@ -1,0 +1,102 @@
+<!-- Toolbar -->
+<Toolbar></Toolbar>
+
+<div class="content" role="main">
+  <div class="card-container">
+    <mat-form-field class="search-form-field" appearance="fill">
+      <mat-label>Search credential types</mat-label>
+      <input matInput type="text" [(ngModel)]="searchValue">
+      <button *ngIf="searchValue" matSuffix mat-icon-button aria-label="Clear" (click)="searchValue=''">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <a class="card actionCard" href="/build">
+      <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z" />
+      </svg>
+      <span>New Credential Type</span>
+      <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+      </svg> </a>
+
+    <a class="card actionCard" href="/verify">
+      <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z" />
+      </svg>
+      <span>Verify a Credential</span>
+      <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+      </svg>
+    </a>
+  </div>
+
+  <div class="card-container">
+    <div *ngFor="let credential of latestCredentials" class="credential-type">
+      <div class="heading">Credential Type ({{credential.publishDate}})</div>
+      <div class="properties">
+        <div class="row">
+          <div class="left">
+            Publisher
+          </div>
+          <div class="right">
+            {{credential.publisher}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="left">
+            ID
+          </div>
+          <div class="right">
+            {{credential.id}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="left">
+            Main Type
+          </div>
+          <div class="right">
+            {{credential.type}}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="left">
+            Main properties
+          </div>
+          <div class="right">
+            <div class="field" *ngFor="let credProp of getCredentialTypeMainProperties(credential)">
+              {{credProp}}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <!-- <footer>
+    Love Angular?&nbsp;
+    <a href="https://github.com/angular/angular" target="_blank" rel="noopener"> Give our repo a star.
+      <div class="github-star-badge">
+        <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+          <path d="M0 0h24v24H0z" fill="none" />
+          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+        </svg>
+        Star
+      </div>
+    </a>
+    <a href="https://github.com/angular/angular" target="_blank" rel="noopener">
+      <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" fill="#1976d2" />
+        <path d="M0 0h24v24H0z" fill="none" />
+      </svg>
+    </a>
+  </footer> -->
+
+  <Clouds></Clouds>
+</div>
+
+<router-outlet></router-outlet>

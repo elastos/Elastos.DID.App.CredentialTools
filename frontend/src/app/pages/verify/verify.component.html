@@ -1,0 +1,56 @@
+<Toolbar></Toolbar>
+
+<div class="content">
+  <div class="editor">
+    <mat-form-field class="payload" appearance="fill">
+      <mat-label>Credential to verify</mat-label>
+      <textarea matInput [(ngModel)]="credentialContent" placeholder="Paste your credential JSON data here"
+        autocorrect="off" spellcheck="false" (input)="onCredentialContentChanged($event.target)"></textarea>
+    </mat-form-field>
+  </div>
+  <div class="preview">
+    <div class="status">
+      <h2>Result</h2>
+      <div class="success" *ngIf="parseResult == 'success'">
+        <div class="row message">
+          <div class="label">Success</div>
+          <div class="value">The credential was successfully verified</div>
+        </div>
+      </div>
+      <div class="warning" *ngIf="parseResult == 'warning'">
+        <div class="row message">
+          <div class="label">Warnings</div>
+          <div class="value">The credential could be parsed but some fields are missing</div>
+        </div>
+      </div>
+      <div class="error" *ngIf="parseResult == 'error'">
+        <div class="row message">
+          <div class="label">Error</div>
+          <div class="value">{{getGenericErrorMessage()}}</div>
+        </div>
+        <div class="row url" *ngIf="errorIsUnreachableUrl()">
+          <div class="label">Url</div>
+          <div class="value">{{getUrlUnreachableError().url}}</div>
+        </div>
+      </div>
+    </div>
+    <div class="result-content" *ngIf="!error">
+      <div class="row">
+        <h2>Result Preview</h2>
+        <mat-form-field appearance="fill" class="parse-mode-select">
+          <mat-label>Display mode</mat-label>
+          <mat-select [(ngModel)]="previewDisplayMode" (selectionChange)="onDisplayModeChanged()">
+            <mat-option value="compact">Compact</mat-option>
+            <mat-option value="expanded">Expanded</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <div class="code">
+        <pre [innerHtml]="codePreviewHtml">
+      </pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<Clouds></Clouds>

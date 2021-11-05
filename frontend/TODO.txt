@@ -1,0 +1,12 @@
+- use did to build resolve url
+- save contexts to DB
+- urls to server DB contexts
+- verify screen:
+  - jsonld + custom resolver (resolve did:// to the local api temporarily)
+  - paste a json and verify it
+- home screen:
+  - list published credentials
+
+WHEN NEW CHAIN IS READY
+- issue a "credential type" credential to essentials + publish on chain
+- Get stats about used credential types on chain

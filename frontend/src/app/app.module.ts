@@ -1,0 +1,53 @@
+import { NgModule } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatBottomSheetModule } from '@angular/material/bottom-sheet';
+import { MatButtonModule } from '@angular/material/button';
+import { MatGridListModule } from '@angular/material/grid-list';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBarModule } from "@angular/material/snack-bar";
+import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { JwtModule } from '@auth0/angular-jwt';
+import { AppRoutingModule } from './app-routing.module';
+import { AppComponent } from './app.component';
+import { ComponentsModule } from './components/module';
+import { AddFieldSheetComponent } from './pages/build/addfield/addfield.component';
+import { BuildComponent } from './pages/build/build.component';
+import { HomeComponent } from './pages/home/home.component';
+import { LoginComponent } from './pages/login/login.component';
+import { VerifyComponent } from './pages/verify/verify.component';
+
+@NgModule({
+  declarations: [
+    // Pages
+    AppComponent,
+    HomeComponent,
+    BuildComponent,
+    LoginComponent,
+    VerifyComponent,
+
+    // Sheets
+    AddFieldSheetComponent
+  ],
+  imports: [
+    BrowserModule,
+    AppRoutingModule,
+    BrowserAnimationsModule,
+    MatInputModule,
+    MatButtonModule,
+    MatBottomSheetModule,
+    MatSnackBarModule,
+    MatGridListModule,
+    MatSelectModule,
+    FormsModule,
+    MatIconModule,
+    ComponentsModule,
+    JwtModule.forRoot({})
+  ],
+  providers: [
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }

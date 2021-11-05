@@ -1,0 +1,41 @@
+<Toolbar></Toolbar>
+
+<div class="content">
+  <div class="editor">
+    <!-- Credential type -->
+    <mat-form-field class="search-form-field" appearance="fill">
+      <mat-label>Credential type name</mat-label>
+      <input matInput type="text" [(ngModel)]="credentialType" name="credentialType" autocomplete="off"
+        (input)="onCredentialTypeChanged($event.target)">
+    </mat-form-field>
+
+    <!-- Fields -->
+    <div *ngFor="let field of fields">
+      <mat-form-field class="search-form-field" appearance="fill">
+        <mat-label>Field name</mat-label>
+        <input matInput type="text" [(ngModel)]="field.name" [name]="field.name" autocomplete="off"
+          (input)="onFieldNameChanged(field,$event.target)">
+      </mat-form-field>
+      {{field.type}}
+      <button mat-mini-fab color="primary" (click)="deleteField(field)">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+
+    <!-- Add fields -->
+    <div>
+      <button mat-stroked-button (click)="openAddField()">New field</button>
+    </div>
+  </div>
+  <div class="preview">
+    <h2>Generated credential type preview</h2>
+    <div class="code">
+      <pre [innerHtml]="codePreviewHtml">
+      </pre>
+    </div>
+    Publish this credential type: <button mat-raised-button color="accent"
+      (click)="publishCredentialType()">Publish</button>
+  </div>
+</div>
+
+<Clouds></Clouds>
