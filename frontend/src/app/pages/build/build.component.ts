@@ -52,6 +52,7 @@ export class BuildComponent {
 
   public deleteField(field: Field) {
     this.fields.splice(this.fields.findIndex(f => f.id === field.id), 1);
+    this.updateCodePreview();
   }
 
   public onFieldNameChanged(field: Field, target: any) {

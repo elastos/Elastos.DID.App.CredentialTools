@@ -8,6 +8,7 @@ import { prettyPrintJson } from 'pretty-print-json';
 import { BuildService } from 'src/app/services/build.service';
 import { CredentialsService } from 'src/app/services/credentials.service';
 import diplomaCredential from "src/assets/samples/credentials/diploma.json";
+const dJSON = require("dirty-json"); // No TS types
 
 type JsonLdError = {
   details: {
@@ -89,12 +90,34 @@ export class VerifyComponent {
     this.verifying = true;
 
     try {
-      let credentialContentJson = JSON.parse(this.credentialContent);
+      // Remove prettified json texts that don't work in safari. Make them be "pure" json.
+      let possiblyPuritizedJson = dJSON.parse(this.credentialContent);
+
+      let credentialContentJson = JSON.parse(JSON.stringify(possiblyPuritizedJson));
+      if (typeof credentialContentJson !== "object") {
+        this.handleJsonLdParsingError(new InvalidJsonError("This is not a JSON content"));
+        this.verifying = false;
+        return;
+      }
 
       // Make sure we have "https://www.w3.org/2018/credentials/v1" has first entry in the context,
       // this is a W3C spec requirement
       if (!("@context" in credentialContentJson) || credentialContentJson["@context"].indexOf("https://www.w3.org/2018/credentials/v1") !== 0) {
         this.handleJsonLdParsingError(new Error("No @context found, or 'https://www.w3.org/2018/credentials/v1' is missing as first entry of your @context"));
+        this.verifying = false;
+        return;
+      }
+
+      // Make sure there is a credentialSubject
+      if (!("credentialSubject" in credentialContentJson)) {
+        this.handleJsonLdParsingError(new Error("No credentialSubject entry found, this is not a valid credential"));
+        this.verifying = false;
+        return;
+      }
+
+      // Make sure there is a proof
+      if (!("proof" in credentialContentJson)) {
+        this.handleJsonLdParsingError(new Error("No proof entry found, this is not a valid credential"));
         this.verifying = false;
         return;
       }

@@ -32,15 +32,21 @@
   </div>
 
   <div class="card-container">
-    <div *ngFor="let credential of latestCredentials" class="credential-type">
-      <div class="heading">Credential Type ({{credential.publishDate}})</div>
+    <div *ngFor="let credentialType of latestCredentialTypes" class="credential-type">
+      <div class="heading">
+        <div class="type">{{credentialType.type}}</div>
+        <div class="publish-date">
+          <div class="date">{{getPublishDate(credentialType)}}</div>
+          <div class="time">{{getPublishTime(credentialType)}}</div>
+        </div>
+      </div>
       <div class="properties">
         <div class="row">
           <div class="left">
             Publisher
           </div>
           <div class="right">
-            {{credential.publisher}}
+            {{credentialType.publisher}}
           </div>
         </div>
 
@@ -49,16 +55,7 @@
             ID
           </div>
           <div class="right">
-            {{credential.id}}
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="left">
-            Main Type
-          </div>
-          <div class="right">
-            {{credential.type}}
+            {{credentialType.id}}
           </div>
         </div>
 
@@ -66,10 +63,22 @@
           <div class="left">
             Main properties
           </div>
-          <div class="right">
-            <div class="field" *ngFor="let credProp of getCredentialTypeMainProperties(credential)">
+          <div class="right fields">
+            <div class="field" *ngFor="let credProp of getCredentialTypeMainProperties(credentialType)">
               {{credProp}}
             </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="left">
+            URL
+          </div>
+          <div class="right">
+            {{getPublishUrl(credentialType)}}
+            <button mat-icon-button color="primary" (click)="copyUrl(credentialType)">
+              <mat-icon>link</mat-icon>
+            </button>
           </div>
         </div>
       </div>

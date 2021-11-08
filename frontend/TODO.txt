@@ -1,6 +1,0 @@
-- build nested objects
-
-
-WHEN NEW CHAIN IS READY
-- issue a "credential type" credential to essentials + publish on chain
-- Get stats about used credential types on chain

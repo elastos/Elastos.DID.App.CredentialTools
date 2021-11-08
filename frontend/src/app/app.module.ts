@@ -1,3 +1,4 @@
+import { ClipboardModule } from '@angular/cdk/clipboard';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatBottomSheetModule } from '@angular/material/bottom-sheet';
@@ -45,6 +46,7 @@ import { VerifyComponent } from './pages/verify/verify.component';
     MatProgressSpinnerModule,
     FormsModule,
     MatIconModule,
+    ClipboardModule,
     ComponentsModule,
     JwtModule.forRoot({})
   ],

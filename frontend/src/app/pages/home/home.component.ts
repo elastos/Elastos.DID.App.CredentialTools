@@ -1,4 +1,7 @@
+import { Clipboard } from '@angular/cdk/clipboard';
 import { Component } from '@angular/core';
+import { MatSnackBar } from "@angular/material/snack-bar";
+import moment from 'moment';
 import { CredentialType } from 'src/app/model/credentialtype';
 import { CredentialsService } from 'src/app/services/credentials.service';
 
@@ -9,9 +12,12 @@ import { CredentialsService } from 'src/app/services/credentials.service';
 })
 export class HomeComponent {
   public searchValue: string = "";
-  public latestCredentials: CredentialType[] = [];
+  public latestCredentialTypes: CredentialType[] = [];
 
-  constructor(private credentialsService: CredentialsService) {
+  constructor(
+    private credentialsService: CredentialsService,
+    private clipboard: Clipboard,
+    private _snackBar: MatSnackBar,) {
   }
 
   async ngAfterViewInit() {
@@ -36,6 +42,29 @@ export class HomeComponent {
   }
 
   private async fetchCredentialTypes() {
-    this.latestCredentials = await this.credentialsService.searchCredentialTypes(this.searchValue);
+    this.latestCredentialTypes = await this.credentialsService.searchCredentialTypes(this.searchValue);
+  }
+
+  /**
+   * Displayable publication date
+   */
+  public getPublishDate(credentialType: CredentialType): string {
+    return moment.unix(Math.floor(credentialType.publishDate)).format("YYYY-MM-DD ");
+  }
+
+  public getPublishTime(credentialType: CredentialType): string {
+    return moment.unix(Math.floor(credentialType.publishDate)).format("HH:mm");
+  }
+
+  public getPublishUrl(credentialType: CredentialType): string {
+    let publisherShortIdentitier = credentialType.publisher.replace("did:elastos:", "");
+    return `did://elastos/${publisherShortIdentitier}/${credentialType.type}`;
+  }
+
+  public copyUrl(credentialType: CredentialType) {
+    this.clipboard.copy(this.getPublishUrl(credentialType));
+    this._snackBar.open("Credential type URL copied to clipboard", null, {
+      duration: 2000
+    });
   }
 }
