@@ -20,7 +20,7 @@
     "skipLibCheck": true,
     "noImplicitAny": true,
     "strictPropertyInitialization": true,
-    "strictNullChecks": true,
+    "strictNullChecks": false,
     "emitDecoratorMetadata": true,
     "removeComments": true,
     "isolatedModules": false,

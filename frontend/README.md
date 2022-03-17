@@ -24,3 +24,12 @@ Using this toolbox, developers can:
 - create a .env file and set NG_APP_API_URL to point to the back-end api url
 - npm i -D
 - npm run build
+
+# Technical information
+
+## Credential type publishing
+
+- The front end asks the back-end to issue a "credential type" credential, signed by the toolbox DID (this DID doesn't matter much).
+- After receiving the credential, the front-end asks user to import and publish it through his identity wallet (eg: essentials) through the connectivity SDK.
+- After confirmation from the connectivity SDK that the credential was published, the front end notifies the back-end that we want to publish a credential (and sends the credential type url at the same time).
+- The back-end's publish api first checks that the credential is really published and available, and If everything is ok, the backend inserts that new credential type into database for easy listing. Later, this last step will be replaced by a EID chain scan without relying on the front-end to tell us what credential types are available, and also be able to retrieve types published by other tools.

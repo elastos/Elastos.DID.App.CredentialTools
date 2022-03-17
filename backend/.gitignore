@@ -1,3 +1,5 @@
 env-secret.ts
 node_modules/
 logs/
+kyc-did-store/
+package-lock.json

@@ -12,4 +12,8 @@ export class ConnectivityService {
     this.essentialsConnector = new EssentialsConnector();
     connectivity.registerConnector(this.essentialsConnector);
   }
+
+  public getEssentialsConnector(): EssentialsConnector {
+    return this.essentialsConnector;
+  }
 }

@@ -73,10 +73,10 @@ router.get('/currentUser', (req, res) => {
 })
 
 /**
- * Publish a new credential type
+ * Issues a new credential type, signed by this back-end, to the user.
  */
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
-router.post('/credentialtype', authMiddleware, async (req, res) => {
+router.post('/credentialtype/issue', authMiddleware, async (req, res) => {
     let did = req.user.did;
     let { id, type, credentialType } = req.body;
 
@@ -87,7 +87,27 @@ router.post('/credentialtype', authMiddleware, async (req, res) => {
         });
     }
 
-    res.json(await dbService.publishCredentialType(did, id, type, credentialType));
+    res.json(await dbService.issueCredentialType(did, id, type, credentialType));
+});
+
+/**
+ * Registers a new credential type into database for further listing on the front-end.
+ * The credential is first checked online to make sure is really exists and was published
+ * successfully by user's identity wallet.
+ */
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+router.post('/credentialtype/register', authMiddleware, async (req, res) => {
+    let did = req.user.did;
+    let { id } = req.body;
+
+    if (!id) {
+        return res.json({
+            code: 403,
+            message: "id is missing"
+        });
+    }
+
+    res.json(await dbService.registerCredentialType(did, id));
 });
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises

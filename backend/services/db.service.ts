@@ -1,10 +1,11 @@
-import { JSONObject } from "@elastosfoundation/did-js-sdk";
+import { DID, Issuer, JSONObject } from "@elastosfoundation/did-js-sdk";
 import { MongoClient } from "mongodb";
 import { SecretConfig } from "../config/env-secret";
 import logger from "../logger";
 import { CredentialType } from "../model/credentialtype";
 import { CommonResponse } from "../model/response";
 import { User, UserType } from "../model/user";
+import { didService } from "./did.service";
 
 class DBService {
     private client: MongoClient;
@@ -113,35 +114,111 @@ class DBService {
             "@context", "id", "type", "credentialSubject", "@id",
             "@type", "schema", "xsd", "@version"
         ];
+        let excludedObjects = ["displayable"];
+
         for (let field of Object.keys(json)) {
-            if (excludedWords.indexOf(field) < 0) {
+            if (excludedWords.indexOf(field) < 0 && excludedObjects.indexOf(field) < 0) {
                 keywords.push(field);
             }
 
             // Recurse
-            if (typeof json[field] === "object") {
+            if (excludedObjects.indexOf(field) < 0 && typeof json[field] === "object") {
                 keywords = keywords.concat(this.extractCredentialTypeKeywords(json[field] as JSONObject));
             }
         }
         return keywords;
     }
 
-    public async publishCredentialType(did: string, id: string, type: string, credentialType: JSONObject): Promise<CommonResponse<void>> {
+    /**
+     *
+     * @param userDid DID string of the user to whom we will issue the credential. That user will publish the ne credential type with his DID.
+     * @param id Unique short credential identifier used to target this DID this credential. Eg: DiplomaCredential4504564
+     * @param type User friendly credential type name
+     * @param credentialTypePayload JSON payload for the credential subject. Represents the JSON-LD definition of the credential type.
+     * @returns
+     */
+    public async issueCredentialType(userDid: string, id: string, type: string, credentialTypePayload: JSONObject): Promise<CommonResponse<string>> {
+        console.log("issueCredentialType", userDid, id, credentialTypePayload);
+
         try {
+            let doc = await didService.getIssuerDID();
+
+            let selfIssuer = new Issuer(doc);
+            let cb = selfIssuer.issueFor(userDid);
+
+            let vc = await cb.id(id)
+                // This credential is a special "credential type" credential
+                .typeWithContext("ContextDefCredential", "https://ns.elastos.org/credentials/context/v1")
+                // Make the credential nicely displayable
+                .typeWithContext("DisplayableCredential", "https://ns.elastos.org/credentials/displayable/v1")
+                .properties(
+                    {
+                        ...credentialTypePayload,
+                        displayable: {
+                            title: `${type}`,
+                            description: "Credential descriptor for developers to use as credential type in applications",
+                            //icon: "some url" // TODO
+                        }
+                    })
+                .seal(didService.getStorePass());
+
+            let vcJson = JSON.stringify(vc.toJSON());
+
+            return { code: 200, message: 'success', data: vcJson };
+        } catch (err) {
+            logger.error(err);
+            return { code: 500, message: 'server error' };
+        } finally {
+            await this.client.close();
+        }
+    }
+
+    public async registerCredentialType(publisherDid: string, credentialId: string): Promise<CommonResponse<void>> {
+        console.log("registerCredentialType", publisherDid, credentialId);
+
+        try {
+            // Step 1: make sure this credential exists on chain
+            let checkedDID = new DID(publisherDid);
+
+            console.log(`Resolving on chain DID ${checkedDID} to check if the credential type credential exists`);
+            let resolvedDocument = await checkedDID.resolve(true);
+            if (!resolvedDocument) {
+                return { code: 403, message: 'DID not found on the EID chain' };
+            }
+
+            let credentialTypeId = `${publisherDid}#${credentialId}`;
+
+            console.log("Trying to find the credential in the DID document", credentialTypeId);
+            let vc = resolvedDocument.getCredential(credentialTypeId);
+            if (!vc) {
+                return { code: 403, message: `Credential ${credentialId} not found in the target DID` };
+            }
+
+            // Step 2: now that we are sure the credential is published, we can insert it to the database
             await this.client.connect();
             const credentialsTypesCollection = this.client.db().collection<CredentialType>('credential_types');
 
+            let credentialType = vc.getSubject().getProperties();
             let keywords = this.extractCredentialTypeKeywords(credentialType);
             // Append publisher's did to the keywords
-            keywords.push(did);
+            keywords.push(publisherDid);
 
             console.log("Created keywords:", keywords);
 
+            // Make sure we don't insert duplicates
+            let existingEntry = await credentialsTypesCollection.findOne({
+                publisher: publisherDid,
+                id: credentialId
+            });
+            if (existingEntry) {
+                return { code: 403, message: `Credential ${credentialId} Already exists. Not inserting again` };
+            }
+
             await credentialsTypesCollection.insertOne({
-                publisher: did,
+                publisher: publisherDid,
                 publishDate: Date.now() / 1000,
-                id,
-                type,
+                id: credentialId,
+                type: vc.getId().getFragment(),
                 value: credentialType,
                 keywords
             });

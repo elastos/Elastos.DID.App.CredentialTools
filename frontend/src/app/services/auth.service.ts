@@ -4,6 +4,7 @@ import { JwtHelperService } from '@auth0/angular-jwt';
 import { DID } from "@elastosfoundation/elastos-connectivity-sdk-js";
 import jwtDecode from 'jwt-decode';
 import { User } from '../model/user';
+import { ConnectivityService } from './connectivity.service';
 
 const AUTH_TOKEN_STORAGE_KEY = "didauthtoken";
 
@@ -14,7 +15,10 @@ export class AuthService {
   private user: User = null;
   private postAuthRoute: string = null;
 
-  constructor(private jwtHelper: JwtHelperService, public router: Router) {
+  constructor(
+    private jwtHelper: JwtHelperService,
+    public router: Router,
+    private connectivityService: ConnectivityService) {
     this.loadUser();
   }
 
@@ -52,15 +56,19 @@ export class AuthService {
   }
 
   public async signIn(): Promise<void> {
+    // Always disconnect from older WC session first to restart fresh, if needed
+    if (this.connectivityService.getEssentialsConnector().hasWalletConnectSession())
+      await this.connectivityService.getEssentialsConnector().disconnectWalletConnect();
+
     const didAccess = new DID.DIDAccess();
     let presentation;
 
     console.log("Trying to sign in using the connectivity SDK");
     try {
-      presentation = await didAccess.getCredentials({
-        claims: {
-          name: false
-        }
+      presentation = await didAccess.requestCredentials({
+        claims: [
+          DID.standardNameClaim("Display your name to yourself", false)
+        ]
       });
     } catch (e) {
       // Possible exception while using wallet connect (i.e. not an identity wallet)
