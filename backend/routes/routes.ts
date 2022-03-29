@@ -4,8 +4,11 @@ import jwt from 'jsonwebtoken';
 import { SecretConfig } from '../config/env-secret';
 import logger from '../logger';
 import { authMiddleware } from '../middlewares/auth.middleware';
+import { apiError } from '../model/api';
+import { convertedError, hasError, invalidParamError } from '../model/dataorerror';
 import { User } from '../model/user';
 import { dbService } from '../services/db.service';
+import { statsService } from '../services/stats.service';
 
 let router = Router();
 
@@ -57,8 +60,8 @@ router.post('/login', async (req, res) => {
             email,
             canManageAdmins: false
         };
-        let result = await dbService.addUser(user);
-        if (result.code != 200) {
+        let [error, result] = await dbService.addUser(user);
+        if (hasError(error)) {
             res.json(result);
             return;
         }
@@ -114,20 +117,34 @@ router.post('/credentialtype/register', authMiddleware, async (req, res) => {
 router.get('/credentialTypeByUrl', async (req, res) => {
     let credentialUrl = req.query.url as string;
 
-    if (!credentialUrl) {
-        return res.json({
-            code: 403,
-            message: "credentialUrl is missing"
-        });
-    }
+    if (!credentialUrl)
+        return apiError(res, invalidParamError("credentialUrl is missing"));
 
-    res.json(await dbService.getCredentialTypeByUrl(credentialUrl));
+    let [error, data] = await dbService.getCredentialTypeByUrl(credentialUrl);
+    if (hasError(error))
+        return apiError(res, convertedError(error));
+
+    res.json(data?.value);
 });
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 router.get('/credentialtypes', async (req, res) => {
     let search = (req.query.search || "") as string;
     res.json(await dbService.getCredentialTypes(search));
+});
+
+/********************
+ **** STATISTICS ****
+ ********************/
+
+/**
+ * Posts usage statistics (owned and used credential types) from the identity wallet
+ * to this service, to data aggregation purpose (enrich credential types on the toolbox with
+ * more info and better order).
+ */
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+router.post('/statistics/', async (req, res) => {
+    res.json(await statsService.handleIncomingStats(req.body));
 });
 
 export default router;

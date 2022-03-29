@@ -7,7 +7,9 @@ import logger from "morgan";
 import { AddressInfo } from "net";
 import traceLogger from "./logger";
 import router from "./routes/routes";
+import { dbService } from "./services/db.service";
 import { didService } from "./services/did.service";
+import { statsService } from "./services/stats.service";
 
 class CredentialsToolboxApp {
     constructor() { }
@@ -25,7 +27,10 @@ class CredentialsToolboxApp {
         //app.use(authMiddleware)
         app.use('/api/v1', router);
 
+        await dbService.connect();
         await didService.setup();
+
+        statsService.startStatsAggregationTask();
 
         let dbg = debug('credentials-toolbox:server');
 

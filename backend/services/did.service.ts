@@ -1,6 +1,7 @@
 import { DIDBackend, DIDDocument, DIDStore, Features, RootIdentity } from "@elastosfoundation/did-js-sdk";
 import { MyDIDAdapter } from "../adapters/mydid.adapter";
 import { SecretConfig } from "../config/env-secret";
+import logger from "../logger";
 
 const storePass = "unsafepass"; // No real password. We store the mnemonic in the service anyway.
 
@@ -20,14 +21,14 @@ class DIDService {
       // This is mandatory to be able  to issue and sign credentials for others
 
       let rootIdentity = RootIdentity.createFromMnemonic(SecretConfig.DID.credentialIssuerDIDMnemonic, passphrase, didStore, storePass, true);
-      console.log("Created issuer root identity");
+      logger.info("Created issuer root identity");
 
       this.issuerDID = await rootIdentity.newDid(storePass, 0, true); // Index 0, overwrite
-      console.log("Issuer DID:", this.issuerDID.getSubject().toString());
+      logger.info("Created issuer DID:", this.issuerDID.getSubject().toString());
     }
     else {
       this.issuerDID = await didStore.loadDid(SecretConfig.DID.credentialIssuerDIDString);
-      console.log("Loaded issuer DID:", this.issuerDID.getSubject().toString());
+      logger.info("Loaded issuer DID:", this.issuerDID.getSubject().toString());
     }
   }
 

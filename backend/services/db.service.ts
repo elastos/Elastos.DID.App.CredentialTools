@@ -3,104 +3,97 @@ import { MongoClient } from "mongodb";
 import { SecretConfig } from "../config/env-secret";
 import logger from "../logger";
 import { CredentialType } from "../model/credentialtype";
-import { CommonResponse } from "../model/response";
+import { DataOrError, dataOrErrorData, invalidParamError, notFoundError, serverError, stateError } from "../model/dataorerror";
 import { User, UserType } from "../model/user";
 import { didService } from "./did.service";
 
 class DBService {
     private client: MongoClient;
 
-    constructor() {
+    constructor() { }
+
+    public async connect(): Promise<void> {
         let mongoConnectionUrl;
         if (SecretConfig.Mongo.user)
             mongoConnectionUrl = `mongodb://${SecretConfig.Mongo.user}:${SecretConfig.Mongo.password}@${SecretConfig.Mongo.host}:${SecretConfig.Mongo.port}/${SecretConfig.Mongo.dbName}?authSource=admin`;
         else
             mongoConnectionUrl = `mongodb://${SecretConfig.Mongo.host}:${SecretConfig.Mongo.port}/${SecretConfig.Mongo.dbName}`;
 
-        console.log("mongoConnectionUrl", mongoConnectionUrl);
-
         this.client = new MongoClient(mongoConnectionUrl, {
-            //useNewUrlParser: true, useUnifiedTopology: true
+            minPoolSize: 10,
+            maxPoolSize: 50
         });
+        await this.client.connect();
+
+        logger.info("Connected to mongo");
     }
 
-    public async checkConnect(): Promise<CommonResponse<void>> {
+    public getClient(): MongoClient {
+        return this.client;
+    }
+
+    public async checkConnect(): Promise<DataOrError<string>> {
         try {
-            await this.client.connect();
             await this.client.db().collection('users').find({}).limit(1);
-            return { code: 200, message: 'success' };
+            return dataOrErrorData('success');
         } catch (err) {
             logger.error(err);
-            return { code: 200, message: 'mongodb connect failed' };
-        } finally {
-            await this.client.close();
+            return serverError('mongodb connect failed');
         }
     }
 
     public async updateUser(did: string, name: string, email: string): Promise<number> {
         try {
-            await this.client.connect();
             const collection = this.client.db().collection('users');
             let result = await collection.updateOne({ did }, { $set: { name, email } });
             return result.matchedCount;
         } catch (err) {
             logger.error(err);
             return -1;
-        } finally {
-            await this.client.close();
         }
     }
 
-    public async setUserType(targetDid: string, type: UserType) {
+    public async setUserType(targetDid: string, type: UserType): Promise<DataOrError<void>> {
         try {
-            await this.client.connect();
             const collection = this.client.db().collection('users');
 
             let user = await collection.findOne({ did: targetDid });
             if (!user) {
-                return { code: 404, message: 'User not found' };
+                return notFoundError('User not found');
             }
 
             await collection.updateOne({ did: targetDid }, { $set: { type } });
 
-            return { code: 200, message: 'success' };
+            return dataOrErrorData();
         } catch (err) {
             logger.error(err);
-            return { code: 500, message: 'server error' };
-        } finally {
-            await this.client.close();
+            return serverError('server error');
         }
     }
 
     public async findUserByDID(did: string): Promise<User | null> {
         try {
-            await this.client.connect();
             const collection = this.client.db().collection<User>('users');
             return (await collection.find({ did }).project<User>({ '_id': 0 }).limit(1).toArray())[0];
         } catch (err) {
             logger.error(err);
             return null;
-        } finally {
-            await this.client.close();
         }
     }
 
-    public async addUser(user: User): Promise<CommonResponse<void>> {
+    public async addUser(user: User): Promise<DataOrError<void>> {
         try {
-            await this.client.connect();
             const collection = this.client.db().collection('users');
             const docs = await collection.find({ did: user.did }).toArray();
             if (docs.length === 0) {
                 await collection.insertOne(user);
-                return { code: 200, message: 'success' };
+                return dataOrErrorData();
             } else {
-                return { code: 400, message: 'DID or Telegram exists' }
+                return stateError('DID or Telegram exists');
             }
         } catch (err) {
             logger.error(err);
-            return { code: 500, message: 'server error' };
-        } finally {
-            await this.client.close();
+            return serverError('server error');
         }
     }
 
@@ -137,7 +130,7 @@ class DBService {
      * @param credentialTypePayload JSON payload for the credential subject. Represents the JSON-LD definition of the credential type.
      * @returns
      */
-    public async issueCredentialType(userDid: string, id: string, type: string, credentialTypePayload: JSONObject): Promise<CommonResponse<string>> {
+    public async issueCredentialType(userDid: string, id: string, type: string, credentialTypePayload: JSONObject): Promise<DataOrError<string>> {
         console.log("issueCredentialType", userDid, id, credentialTypePayload);
 
         try {
@@ -164,16 +157,14 @@ class DBService {
 
             let vcJson = JSON.stringify(vc.toJSON());
 
-            return { code: 200, message: 'success', data: vcJson };
+            return dataOrErrorData(vcJson);
         } catch (err) {
             logger.error(err);
-            return { code: 500, message: 'server error' };
-        } finally {
-            await this.client.close();
+            return serverError('server error');
         }
     }
 
-    public async registerCredentialType(publisherDid: string, credentialId: string): Promise<CommonResponse<void>> {
+    public async registerCredentialType(publisherDid: string, credentialId: string): Promise<DataOrError<void>> {
         console.log("registerCredentialType", publisherDid, credentialId);
 
         try {
@@ -183,7 +174,7 @@ class DBService {
             console.log(`Resolving on chain DID ${checkedDID} to check if the credential type credential exists`);
             let resolvedDocument = await checkedDID.resolve(true);
             if (!resolvedDocument) {
-                return { code: 403, message: 'DID not found on the EID chain' };
+                return invalidParamError('DID not found on the EID chain');
             }
 
             let credentialTypeId = `${publisherDid}#${credentialId}`;
@@ -191,11 +182,10 @@ class DBService {
             console.log("Trying to find the credential in the DID document", credentialTypeId);
             let vc = resolvedDocument.getCredential(credentialTypeId);
             if (!vc) {
-                return { code: 403, message: `Credential ${credentialId} not found in the target DID` };
+                return invalidParamError(`Credential ${credentialId} not found in the target DID`);
             }
 
             // Step 2: now that we are sure the credential is published, we can insert it to the database
-            await this.client.connect();
             const credentialsTypesCollection = this.client.db().collection<CredentialType>('credential_types');
 
             let credentialType = vc.getSubject().getProperties();
@@ -211,9 +201,10 @@ class DBService {
                 id: credentialId
             });
             if (existingEntry) {
-                return { code: 403, message: `Credential ${credentialId} Already exists. Not inserting again` };
+                return invalidParamError(`Credential ${credentialId} Already exists. Not inserting again`);
             }
 
+            // Insert
             await credentialsTypesCollection.insertOne({
                 publisher: publisherDid,
                 publishDate: Date.now() / 1000,
@@ -223,30 +214,27 @@ class DBService {
                 keywords
             });
 
-            return { code: 200, message: 'success' };
+            return dataOrErrorData();
         } catch (err) {
             logger.error(err);
-            return { code: 500, message: 'server error' };
-        } finally {
-            await this.client.close();
+            return serverError('server error');
         }
     }
 
     // did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
-    public async getCredentialTypeByUrl(credentialUrl: string): Promise<unknown> {
+    public async getCredentialTypeByUrl(credentialUrl: string): Promise<DataOrError<CredentialType>> {
         // Extract publisher and credential ID from the url
         let regex = new RegExp(/^did:\/\/elastos\/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)#?/);
         let parts = regex.exec(credentialUrl);
 
         if (!parts || parts.length < 3) {
-            return { code: 403, message: 'Invalid url format, cannot find credential publisher and ID' };
+            return invalidParamError('Invalid url format, cannot find credential publisher and ID');
         }
 
         let publisher = `did:elastos:${parts[1]}`;
         let credentialId = parts[2];
 
         try {
-            await this.client.connect();
             const credentialsTypesCollection = this.client.db().collection<CredentialType>('credential_types');
 
             let credentialType = await credentialsTypesCollection.findOne({
@@ -254,18 +242,15 @@ class DBService {
                 id: credentialId
             });
 
-            return { code: 200, message: 'success', data: credentialType?.value };
+            return dataOrErrorData(credentialType);
         } catch (err) {
             logger.error(err);
-            return { code: 500, message: 'server error' };
-        } finally {
-            await this.client.close();
+            return serverError('server error');
         }
     }
 
-    public async getCredentialTypes(search: string): Promise<CommonResponse<CredentialType[]>> {
+    public async getCredentialTypes(search: string): Promise<DataOrError<CredentialType[]>> {
         try {
-            await this.client.connect();
             const credentialsTypesCollection = this.client.db().collection<CredentialType>('credential_types');
 
             let credentialTypes = await credentialsTypesCollection.find({
@@ -276,12 +261,10 @@ class DBService {
                     $search: search
                 } */
             }).limit(30).sort({ publishDate: -1 }).toArray();
-            return { code: 200, message: 'success', data: credentialTypes };
+            return dataOrErrorData(credentialTypes);
         } catch (err) {
             logger.error(err);
-            return { code: 500, message: 'server error' };
-        } finally {
-            await this.client.close();
+            return serverError('server error');
         }
     }
 }
