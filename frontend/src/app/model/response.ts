@@ -1,5 +1,5 @@
 export type CommonResponse<T> = {
     code: number,
-    message: string,
+    errorMessage?: string,
     data?: T
 }

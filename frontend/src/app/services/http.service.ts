@@ -40,13 +40,19 @@ export class HttpService {
       body: JSON.stringify(body)
     });
 
-    if (response) {
-      return response.json() as Promise<CommonResponse<T>>;
+    if (response && response.status === 200) {
+      let textContent = await response.text();
+      let jsonContent = textContent ? JSON.parse(textContent) : null;
+
+      return {
+        code: response.status,
+        data: jsonContent as T
+      };
     }
     else {
       return {
-        code: 500,
-        message: "Empty response"
+        code: response.status,
+        errorMessage: await response.text()
       }
     }
   }

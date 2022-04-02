@@ -7,6 +7,7 @@ import logger from "morgan";
 import { AddressInfo } from "net";
 import traceLogger from "./logger";
 import router from "./routes/routes";
+import { credentialTypeService } from "./services/credentialtype.service";
 import { dbService } from "./services/db.service";
 import { didService } from "./services/did.service";
 import { statsService } from "./services/stats.service";
@@ -29,6 +30,7 @@ class CredentialsToolboxApp {
 
         await dbService.connect();
         await didService.setup();
+        await credentialTypeService.setup();
 
         statsService.startStatsAggregationTask();
 

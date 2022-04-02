@@ -1,0 +1,30 @@
+<Toolbar></Toolbar>
+
+<div class="content">
+  <credential-type [credentialType]="credentialType" [showView]="false"></credential-type>
+
+  <div class="create-credential-sample" *ngIf="credentialType">
+    <div class="heading">Create a credential - Sample code - DID JS SDK</div>
+    <div class="info">
+      Use the following typescript code to generate a credential that uses the above type. Also refer to
+      <a
+        href="https://docs.elastos.org/guides/v/elastos-decentralized-identity-did/javascript/developer-guide-with-sample-code/credential-and-presentation/issue-a-credential">credentials
+        guides on the Elastos developer portal</a>.
+    </div>
+    <pre><code #createCredentialSample class="language-typescript">{{getCreateCredentialSampleSourceCode()}}</code></pre>
+  </div>
+
+  <div class="request-credential-sample" *ngIf="credentialType">
+    <div class="heading">Request a credential - Sample code - Connectivity JS SDK</div>
+    <div class="info">
+      Use the following typescript code to ask users to provide any credential of the given abot type, through their
+      identity wallet (eg: Elastos Essentials). Also refer to
+      <a href="https://docs.elastos.org/guides/v/connectivity-sdk/guides-1/decentralised-identities">connectivity SDK
+        guide on the Elastos developer portal</a>.
+    </div>
+    <pre><code #requestCredentialSample class="language-typescript">{{getRequestCredentialSampleSourceCode()}}</code></pre>
+  </div>
+
+</div>
+
+<Clouds></Clouds>

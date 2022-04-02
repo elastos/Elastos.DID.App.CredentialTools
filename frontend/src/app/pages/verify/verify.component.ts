@@ -224,11 +224,11 @@ export class VerifyComponent {
             // chain resolving later.
             // Convert urls such as: did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
             // into local toolbox API call: http://apiurl/api/v1/credentialTypeByUrl?url=did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
-            let credentialTypeData = await this.credentialsService.getCredentialTypeByUrl(url);
+            let credentialTypeData = await this.credentialsService.fetchCredentialType(url);
             resolve({
               contextUrl: null,
               documentUrl: url,
-              document: credentialTypeData
+              document: credentialTypeData ? credentialTypeData.contextPayload : null
             });
           }
           else {

@@ -7,8 +7,10 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 import { apiError } from '../model/api';
 import { convertedError, hasError, invalidParamError } from '../model/dataorerror';
 import { User } from '../model/user';
+import { credentialTypeService } from '../services/credentialtype.service';
 import { dbService } from '../services/db.service';
 import { statsService } from '../services/stats.service';
+import { userService } from '../services/user.service';
 
 let router = Router();
 
@@ -35,7 +37,7 @@ router.post('/login', async (req, res) => {
     }
 
     // First check if we know this user yet or not. If not, we will create an entry
-    let existingUser = await dbService.findUserByDID(did);
+    let existingUser = await userService.findUserByDID(did);
     let user: User;
     if (existingUser) {
         // Nothing to do yet
@@ -60,7 +62,7 @@ router.post('/login', async (req, res) => {
             email,
             canManageAdmins: false
         };
-        let [error, result] = await dbService.addUser(user);
+        let [error, result] = await userService.addUser(user);
         if (hasError(error)) {
             res.json(result);
             return;
@@ -77,6 +79,8 @@ router.get('/currentUser', (req, res) => {
 
 /**
  * Issues a new credential type, signed by this back-end, to the user.
+ *
+ * @returns JSON object of the credential type credential created
  */
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 router.post('/credentialtype/issue', authMiddleware, async (req, res) => {
@@ -84,13 +88,15 @@ router.post('/credentialtype/issue', authMiddleware, async (req, res) => {
     let { id, type, credentialType } = req.body;
 
     if (!id || !type || !credentialType) {
-        return res.json({
-            code: 403,
-            message: "id, type or credentialType is missing"
-        });
+        return apiError(res, invalidParamError("id, type or credentialType is missing"));
     }
 
-    res.json(await dbService.issueCredentialType(did, id, type, credentialType));
+    let [error, data] = await credentialTypeService.issueCredentialType(did, id, type, credentialType)
+
+    if (hasError(error))
+        return apiError(res, convertedError(error));
+
+    res.json(JSON.parse(data));
 });
 
 /**
@@ -101,36 +107,43 @@ router.post('/credentialtype/issue', authMiddleware, async (req, res) => {
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 router.post('/credentialtype/register', authMiddleware, async (req, res) => {
     let did = req.user.did;
-    let { id } = req.body;
+    let { id, type } = req.body;
 
-    if (!id) {
-        return res.json({
-            code: 403,
-            message: "id is missing"
-        });
+    if (!id || !type) {
+        return apiError(res, invalidParamError("id or type is missing"));
     }
 
-    res.json(await dbService.registerCredentialType(did, id));
-});
+    let [error] = await credentialTypeService.registerEIDCredentialType(did, id, type);
 
-// eslint-disable-next-line @typescript-eslint/no-misused-promises
-router.get('/credentialTypeByUrl', async (req, res) => {
-    let credentialUrl = req.query.url as string;
-
-    if (!credentialUrl)
-        return apiError(res, invalidParamError("credentialUrl is missing"));
-
-    let [error, data] = await dbService.getCredentialTypeByUrl(credentialUrl);
     if (hasError(error))
         return apiError(res, convertedError(error));
 
-    res.json(data?.value);
+    res.json();
+});
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+router.get('/credentialTypeByContextUrl', async (req, res) => {
+    let { contextUrl, shortType } = req.query;
+
+    if (!contextUrl)
+        return apiError(res, invalidParamError("context 'url' is missing"));
+
+    let [error, data] = await credentialTypeService.getCredentialTypeByContextUrl(contextUrl as string, shortType as string);
+    if (hasError(error))
+        return apiError(res, convertedError(error));
+
+    res.json(data);
 });
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 router.get('/credentialtypes', async (req, res) => {
     let search = (req.query.search || "") as string;
-    res.json(await dbService.getCredentialTypes(search));
+
+    let [error, data] = await credentialTypeService.getCredentialTypes(search);
+    if (hasError(error))
+        return apiError(res, convertedError(error));
+
+    res.json(data);
 });
 
 /********************

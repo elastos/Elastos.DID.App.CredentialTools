@@ -1,7 +1,7 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { Component } from '@angular/core';
 import { MatSnackBar } from "@angular/material/snack-bar";
-import moment from 'moment';
+import { Router } from '@angular/router';
 import { CredentialType } from 'src/app/model/credentialtype';
 import { CredentialsService } from 'src/app/services/credentials.service';
 
@@ -17,6 +17,7 @@ export class HomeComponent {
   constructor(
     private credentialsService: CredentialsService,
     private clipboard: Clipboard,
+    private router: Router,
     private _snackBar: MatSnackBar,) {
   }
 
@@ -25,11 +26,13 @@ export class HomeComponent {
   }
 
   public getCredentialTypeMainProperties(credential: CredentialType): string[] {
-    if (!credential.value || !("@context" in credential.value))
+    let credJson = JSON.parse(credential.contextPayload);
+
+    if (!credential.contextPayload || !("@context" in credJson))
       return [];
 
-    const excludedKeys = ["schema", "xsd", "@version", credential.type];
-    return Object.keys(credential.value["@context"]).filter(k => excludedKeys.indexOf(k) < 0);
+    const excludedKeys = ["schema", "xsd", "@version", credential.contextPayload];
+    return Object.keys(credJson["@context"]).filter(k => excludedKeys.indexOf(k) < 0);
   }
 
   public async onSearchValueChanged(event: any) {
@@ -43,28 +46,15 @@ export class HomeComponent {
 
   private async fetchCredentialTypes() {
     this.latestCredentialTypes = await this.credentialsService.searchCredentialTypes(this.searchValue);
+    console.log("this.latestCredentialTypes", this.latestCredentialTypes)
   }
 
-  /**
-   * Displayable publication date
-   */
-  public getPublishDate(credentialType: CredentialType): string {
-    return moment.unix(Math.floor(credentialType.publishDate)).format("YYYY-MM-DD ");
-  }
-
-  public getPublishTime(credentialType: CredentialType): string {
-    return moment.unix(Math.floor(credentialType.publishDate)).format("HH:mm");
-  }
-
-  public getPublishUrl(credentialType: CredentialType): string {
-    let publisherShortIdentitier = credentialType.publisher.replace("did:elastos:", "");
-    return `did://elastos/${publisherShortIdentitier}/${credentialType.type}`;
-  }
-
-  public copyUrl(credentialType: CredentialType) {
-    this.clipboard.copy(this.getPublishUrl(credentialType));
-    this._snackBar.open("Credential type URL copied to clipboard", null, {
-      duration: 2000
+  public openCredentialTypeDetails(credentialType: CredentialType) {
+    this.router.navigate(["/typedetails"], {
+      queryParams: {
+        context: credentialType.context,
+        shortType: credentialType.shortType
+      }
     });
   }
 }

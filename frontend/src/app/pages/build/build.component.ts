@@ -94,7 +94,9 @@ export class BuildComponent {
     if (couldPublish)
       this.router.navigate(['home']);
     else {
-      this._snackBar.open("Failed to publish...");
+      this._snackBar.open("Failed to publish...", null, {
+        duration: 5000
+      });
     }
   }
 }

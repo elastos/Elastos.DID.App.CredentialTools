@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { SecretConfig } from "../config/env-secret";
-import { dbService } from "../services/db.service";
+import { userService } from "../services/user.service";
 
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
@@ -13,7 +13,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
                 if (error || !decoded) {
                     res.json({ code: 403, message: 'Token verify failed' })
                 } else {
-                    let user = await dbService.findUserByDID(decoded.did);
+                    let user = await userService.findUserByDID(decoded.did);
                     if (user) {
                         req.user = user;
                         next();

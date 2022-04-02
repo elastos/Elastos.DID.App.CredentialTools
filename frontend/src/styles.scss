@@ -1,5 +1,11 @@
 @import "~@angular/material/prebuilt-themes/indigo-pink.css";
 
+//@import "~prismjs/plugins/toolbar/prism-toolbar.css";
+//@import "~prismjs/themes/prism-coy";
+//@import "~prismjs/themes/prism-okaidia";
+@import "~prismjs/themes/prism-solarizedlight";
+//@import "~prismjs/themes/prism";
+
 html,
 body {
   height: 100%;
@@ -7,4 +13,8 @@ body {
 body {
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+a:visited {
+  color: inherit;
 }

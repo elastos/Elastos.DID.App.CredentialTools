@@ -39,7 +39,7 @@ export type UsingApp = {
   did: string; // Application DID
   name: string; // Resolved app name
   icon: string; // Resolved app icon, cached and served by the current service
-  users: number; // Number of users using a credential type (requested by this third party app)
+  users: number; // Number of users using a credential type through this the app
 }
 
 export type Issuer = {
@@ -53,7 +53,7 @@ export type Issuer = {
  * Type used to append aggregated statistics into credential type objects themselves in mongo.
  */
 export type CredentialTypeAggregatedStats = {
-  topUsingApps: UsingApp[]; // List of apps that use a credential type and the number of users who recently used this type through this app.
+  topUsingApps: UsingApp[]; // List of apps that use a credential type and the number of users who recently used this type through this app
   topIssuers: Issuer[]; // List of apps or users who issued credentials that use this credential type.
   totalUsers: number; // Number of users who have at least one credential using such credential type.
   totalCredentials: number; // Total number of credentials using this type. Each user can have many.

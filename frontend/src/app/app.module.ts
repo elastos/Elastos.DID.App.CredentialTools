@@ -12,6 +12,16 @@ import { MatSnackBarModule } from "@angular/material/snack-bar";
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { JwtModule } from '@auth0/angular-jwt';
+import 'prismjs';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-sass';
+import 'prismjs/components/prism-scss';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/plugins/copy-to-clipboard/prism-copy-to-clipboard';
+import 'prismjs/plugins/toolbar/prism-toolbar';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { ComponentsModule } from './components/module';
@@ -19,7 +29,9 @@ import { AddFieldSheetComponent } from './pages/build/addfield/addfield.componen
 import { BuildComponent } from './pages/build/build.component';
 import { HomeComponent } from './pages/home/home.component';
 import { LoginComponent } from './pages/login/login.component';
+import { TypeDetailsComponent } from './pages/typedetails/typedetails.component';
 import { VerifyComponent } from './pages/verify/verify.component';
+
 
 @NgModule({
   declarations: [
@@ -29,6 +41,7 @@ import { VerifyComponent } from './pages/verify/verify.component';
     BuildComponent,
     LoginComponent,
     VerifyComponent,
+    TypeDetailsComponent,
 
     // Sheets
     AddFieldSheetComponent
