@@ -15,9 +15,40 @@
 
   .editor {
     width: 50%;
+
+    .fields {
+      margin-top: 20px;
+    }
   }
+
   .preview {
     width: 50%;
+
+    .publish-commands {
+      display: flex;
+      align-items: center;
+
+      mat-spinner,
+      button {
+        margin-left: 10px;
+      }
+
+      mat-spinner {
+        width: 30px !important;
+        height: 30px !important;
+
+        svg {
+          width: 30px !important;
+          height: 30px !important;
+        }
+      }
+
+      .info {
+        margin-left: 10px;
+        font-weight: bold;
+        color: black;
+      }
+    }
 
     .code {
       background: #f0f0f0;
@@ -50,6 +81,17 @@
           color: black;
         }
       }
+    }
+
+    .error-message {
+      background: #c50000;
+      margin: 10px 0;
+      color: white;
+      padding: 8px;
+    }
+
+    .info {
+      color: #666;
     }
   }
 }

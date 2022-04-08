@@ -1,0 +1,16 @@
+:host {
+  display: block;
+}
+
+.sub-object {
+  margin-left: 10px;
+  padding-left: 10px;
+  margin-bottom: 20px;
+  border-left: solid 1px gray;
+}
+
+.field {
+  .type {
+    margin: 0 10px;
+  }
+}

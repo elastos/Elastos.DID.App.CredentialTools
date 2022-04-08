@@ -1,12 +1,15 @@
-import { Clipboard } from '@angular/cdk/clipboard';
 import { Component, ElementRef, OnInit, ViewChild, ViewEncapsulation } from '@angular/core';
-import { MatBottomSheet } from '@angular/material/bottom-sheet';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import Prism from "prismjs";
+import { ObjectField } from 'src/app/model/build/field';
 import { CredentialType } from 'src/app/model/credentialtype';
 import { BuildService } from 'src/app/services/build.service';
-import { CredentialsService, PropertyWithType } from 'src/app/services/credentials.service';
+import { CredentialsService } from 'src/app/services/credentials.service';
+
+export type TypeDetailsPageParams = {
+  context: string;
+  shortType: string
+}
 
 @Component({
   selector: 'app-typedetails',
@@ -23,19 +26,25 @@ export class TypeDetailsComponent implements OnInit {
   public credentialType: CredentialType;
 
   constructor(
-    private _bottomSheet: MatBottomSheet,
-    private buildService: BuildService,
     private router: Router,
     private route: ActivatedRoute,
-    private clipboard: Clipboard,
-    private _snackBar: MatSnackBar,
+    private builderService: BuildService,
     private credentialsService: CredentialsService) {
   }
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
-      this.context = params.context;
-      this.shortType = params.shortType;
+      let typedParams = params as TypeDetailsPageParams;
+
+      this.context = typedParams.context;
+      this.shortType = typedParams.shortType;
+
+      if (!this.context || !this.shortType) {
+        console.warn("Credential type details screen called without context or short type, redirecting to home");
+        this.router.navigate(["/home"]);
+        return;
+      }
+
       this.credentialsService.fetchCredentialType(this.context, this.shortType).then(ct => {
         this.credentialType = ct;
 
@@ -47,8 +56,8 @@ export class TypeDetailsComponent implements OnInit {
     });
   }
 
-  public getCredentialTypeMainProperties(): PropertyWithType[] {
-    return this.credentialsService.getUsablePropertiesWithTypes(this.credentialType);
+  public getCredentialTypeMainProperties(): ObjectField {
+    return this.builderService.extractObjectFieldFromCredentialType(this.credentialType);
   }
 
   public getCreateCredentialSampleSourceCode(): string {
@@ -59,9 +68,9 @@ export class TypeDetailsComponent implements OnInit {
     code += `   // Mandatory: use this credential type and fill the associated properties with data\n`;
     code += `   .typeWithContext("${this.credentialType.shortType}", "${this.credentialType.context}")\n`;
 
-    let properties = this.getCredentialTypeMainProperties();
-    for (let property of properties) {
-      code += `   .property("${property.propertyName}", "Your value here")\n`;
+    let rootObject = this.getCredentialTypeMainProperties();
+    for (let field of rootObject.children) {
+      code += `   .property("${field.name}", "Your value here")\n`;
     }
 
     code += `   // Optional: implement the standard DisplayableCredential for better display in wallets\n`;

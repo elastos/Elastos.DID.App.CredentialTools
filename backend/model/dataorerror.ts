@@ -17,6 +17,7 @@ export type DataOrErrorError = {
 export type DataOrError<T> = [DataOrErrorError, T?];
 
 export const error = <T>(errorType: ErrorType, error: string): DataOrError<T> => {
+    logger.warn(error);
     return [{
         error,
         errorType

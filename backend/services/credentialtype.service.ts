@@ -1,8 +1,8 @@
-import { DID, Issuer, JSONObject } from "@elastosfoundation/did-js-sdk";
+import { DID, DIDURL, Issuer, JSONObject } from "@elastosfoundation/did-js-sdk";
 import fetch from "node-fetch";
 import logger from "../logger";
 import { CredentialType, CredentialTypeMedium } from "../model/credentialtype";
-import { DataOrError, dataOrErrorData, invalidParamError, serverError } from "../model/dataorerror";
+import { DataOrError, dataOrErrorData, invalidParamError, serverError, stateError } from "../model/dataorerror";
 import { dbService } from "./db.service";
 import { didService } from "./did.service";
 
@@ -105,36 +105,7 @@ class CredentialTypeService {
         });
         let contextJson = await response.json() as JSONObject;
 
-        // Delete from database if already existing, we are going to refresh it
-        let existingType = await dbService.getClient().db().collection(CREDENTIAL_TYPES_COLLECTION).findOne({
-            context: info.context,
-            shortType: info.type
-        });
-
-        let keywords = this.extractCredentialTypeKeywords(contextJson);
-
-        if (!existingType) {
-            let insertedType: CredentialType = {
-                medium: CredentialTypeMedium.HTTPS,
-                context: info.context,
-                shortType: info.type,
-                contextPayload: JSON.stringify(contextJson),
-                creationDate: null, // TODO: fill it for EID chain types, null for http
-                keywords
-            };
-            await dbService.getClient().db().collection(CREDENTIAL_TYPES_COLLECTION).insertOne(insertedType);
-        }
-        else {
-            // Existing: just update a few things
-            await dbService.getClient().db().collection(CREDENTIAL_TYPES_COLLECTION).updateOne({
-                _id: existingType._id
-            }, {
-                $set: {
-                    contextPayload: JSON.stringify(contextJson),
-                    keywords: keywords
-                }
-            });
-        }
+        await this.upsertCredentialType(info.context, info.type, contextJson);
     }
 
     /**
@@ -159,6 +130,14 @@ class CredentialTypeService {
                 keywords = keywords.concat(this.extractCredentialTypeKeywords(json[field] as JSONObject));
             }
         }
+
+        // Append publisher's did to the keywords
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (("credentialSubject" in json) && ("id" in (json as any).credentialSubject)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            keywords.push((json.credentialSubject as any).id);
+        }
+
         return keywords;
     }
 
@@ -204,11 +183,163 @@ class CredentialTypeService {
         }
     }
 
-    public async registerEIDCredentialType(publisherDid: string, credentialId: string, shortType: string): Promise<DataOrError<void>> {
-        console.log("registerCredentialType", publisherDid, shortType);
+    public async upsertCredentialType(contextUrl: string, shortType: string, credentialTypePayload: JSONObject, publisherDid?: string): Promise<DataOrError<CredentialType>> {
+        logger.info("Upserting credential type", contextUrl, shortType, publisherDid);
 
         try {
-            // Step 1: make sure this credential exists on chain
+            const credentialsTypesCollection = dbService.getClient().db().collection<CredentialType>(CREDENTIAL_TYPES_COLLECTION);
+
+            let keywords = this.extractCredentialTypeKeywords(credentialTypePayload);
+
+            // Append context and short type to searcheable terms
+            keywords.push(contextUrl);
+            keywords.push(shortType);
+
+            let existingCredentialType = await credentialsTypesCollection.findOne({
+                context: contextUrl,
+                shortType
+            });
+
+            // There are 2 possibilities here:
+            // - If we already have this context url / short type in DB, then we are registering a
+            //   new version of the credential (modified), so we must add the payload to the list of
+            //   existing payloads.
+            // - If there is no such context yet, we create a new one with only one payload
+            let now = Date.now() / 1000;
+            let credentialTypeMongoId;
+            if (!existingCredentialType) {
+                // First creation - insert
+                logger.info("Credential type doesn't exist, creating a new entry");
+
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                let insertQuery: any = {
+                    context: contextUrl,
+                    shortType: shortType,
+                    contextPayloads: [{
+                        insertDate: now,
+                        payload: JSON.stringify(credentialTypePayload)
+                    }],
+                    creationDate: now,
+                    keywords
+                };
+
+                if (contextUrl.startsWith("did:")) {
+                    insertQuery.medium = CredentialTypeMedium.EID_CHAIN;
+                    insertQuery.elastosEIDChain = {
+                        publisher: publisherDid,
+                    };
+                }
+                else {
+                    insertQuery.medium = CredentialTypeMedium.HTTPS;
+                }
+
+                let insertResult = await credentialsTypesCollection.insertOne(insertQuery);
+
+                // Retrieve the inserted document to return it
+                if (!insertResult.acknowledged) {
+                    return serverError("Failed to register the credential type");
+                }
+
+                credentialTypeMongoId = insertResult.insertedId;
+            }
+            else {
+                // Credential type update - append, but only if not a duplicate payload
+                logger.info("Credential type exists, updating the existing entry");
+
+                credentialTypeMongoId = existingCredentialType._id;
+
+                // Make sure that we don't have this payload yet
+                let payloadStr = JSON.stringify(credentialTypePayload);
+                let hasThisPayload = !!existingCredentialType.contextPayloads.find(p => p.payload === payloadStr);
+                if (hasThisPayload) {
+                    return stateError("Credential type already exists - " + contextUrl + " - " + shortType);
+                }
+
+                await credentialsTypesCollection.updateOne({
+                    _id: credentialTypeMongoId
+                }, {
+                    $push: {
+                        contextPayloads: {
+                            insertDate: now,
+                            payload: payloadStr
+                        },
+                    },
+                    $set: {
+                        keywords // Update keywords with most recent credential context data
+                    }
+                });
+            }
+
+            console.log("aaaa", credentialTypeMongoId)
+
+            let upsertedCredentialType = await credentialsTypesCollection.findOne({
+                _id: credentialTypeMongoId
+            });
+
+            console.log("bbbb", credentialTypeMongoId, upsertedCredentialType)
+
+            return dataOrErrorData(upsertedCredentialType);
+        } catch (err) {
+            logger.error(err);
+            return serverError('server error');
+        }
+    }
+
+    /**
+     * From: did:elastos:abcdef#MyCred
+     * To: did:elastos:abcdef
+     */
+    private serviceIdToPublisherDid(serviceId: string): string {
+        if (!serviceId || !serviceId.startsWith("did:elastos:"))
+            return null;
+
+        return new DIDURL(serviceId).getDid().toString();
+    }
+
+    /**
+     * From: did:elastos:abcdef#MyCred
+     * To: MyCred
+     */
+    private serviceIdToShortType(serviceId: string): string {
+        if (!serviceId || !serviceId.startsWith("did:elastos:"))
+            return null;
+
+        return new DIDURL(serviceId).getFragment();
+    }
+
+    /**
+     * From: did://elastos/abcdef/MyCred (context)
+     * To: did:elastos:abcdef#MyCred (service id)
+     */
+    public contextToServiceId(contextUrl: string): string {
+        let regex = new RegExp(/^did:\/\/elastos\/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)#?/);
+        let parts = regex.exec(contextUrl);
+
+        if (!parts || parts.length < 3) {
+            return null;
+        }
+
+        let publisher = `did:elastos:${parts[1]}`;
+        let shortType = parts[2];
+
+        return `${publisher}#${shortType}`;
+    }
+
+    /**
+     * From a given service ID, resolve the target DID document on chain, find the service entry,
+     * resolve the target credential context credential targeted by the service and saves a copy
+     * in the local database.
+     *
+     * @param serviceId Eg: did:elastos:abcdef#MyCred
+     */
+    public async registerEIDCredentialType(serviceId: string): Promise<DataOrError<CredentialType>> {
+        console.log("registerCredentialType", serviceId);
+
+        try {
+            let publisherDid = this.serviceIdToPublisherDid(serviceId);
+            let shortType = this.serviceIdToShortType(serviceId);
+
+            // Make sure this credential exists on chain, and get the payload
             let checkedDID = new DID(publisherDid);
 
             console.log(`Resolving on chain DID ${checkedDID} to check if the credential type credential exists`);
@@ -217,51 +348,36 @@ class CredentialTypeService {
                 return invalidParamError('DID not found on the EID chain');
             }
 
-            let credentialTypeId = `${publisherDid}#${credentialId}`;
+            // Find the target service and extract the endpoint - Example:
+            /*
+            "service": [
+                {
+                "id": "did:elastos:insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq#DiplomaCredential",
+                "type": "CredentialContext",
+                "serviceEndpoint": "did:elastos:insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq#DiplomaCredential1234567890"
+                }
+            ]
+            */
+            let service = resolvedDocument.getService(serviceId);
+            if (!service)
+                return invalidParamError(`Service ${serviceId} not found in the DID document`);
 
-            console.log("Trying to find the credential in the DID document", credentialTypeId);
-            let vc = resolvedDocument.getCredential(credentialTypeId);
+            let targetCredentialId = service.getServiceEndpoint();
+
+            console.log("Trying to find the credential in the DID document", targetCredentialId);
+            let vc = resolvedDocument.getCredential(targetCredentialId);
             if (!vc) {
-                return invalidParamError(`Credential ${credentialTypeId} not found in the target DID`);
-            }
-
-            // Step 2: now that we are sure the credential is published, we can insert it to the database
-            const credentialsTypesCollection = dbService.getClient().db().collection<CredentialType>(CREDENTIAL_TYPES_COLLECTION);
-
-            let credentialTypePayload = vc.getSubject().getProperties();
-            let keywords = this.extractCredentialTypeKeywords(credentialTypePayload);
-            // Append publisher's did to the keywords
-            keywords.push(publisherDid);
-
-            console.log("Created keywords:", keywords);
-
-            // Make sure we don't insert duplicates
-            let existingEntry = await credentialsTypesCollection.findOne({
-                publisher: publisherDid,
-                id: shortType
-            });
-            if (existingEntry) {
-                return invalidParamError(`Credential ${shortType} Already exists. Not inserting again`);
+                return invalidParamError(`Credential ${targetCredentialId} not found in the target DID`);
             }
 
             let didIdentifierOnly = publisherDid.replace("did:elastos:", "");
-            // Format: did://elastos/did-identifier-only/credentialType314314
-            let contextUrl = `did://elastos/${didIdentifierOnly}/${credentialId}`;
+            //let credentialIdFragment = vc.getId().getFragment();
+            let contextUrl = `did://elastos/${didIdentifierOnly}/${shortType}`;
 
-            // Insert
-            await credentialsTypesCollection.insertOne({
-                medium: CredentialTypeMedium.EID_CHAIN,
-                elastosEIDChain: {
-                    publisher: publisherDid,
-                },
-                context: contextUrl,
-                shortType: shortType,
-                contextPayload: JSON.stringify(credentialTypePayload),
-                creationDate: Date.now() / 1000,
-                keywords
-            });
+            // Find the context definition in the credential subject of this VC
+            let contextPayload = vc.getSubject().getProperties();
 
-            return dataOrErrorData();
+            return this.upsertCredentialType(contextUrl, shortType, contextPayload, publisherDid);
         } catch (err) {
             logger.error(err);
             return serverError('server error');
@@ -269,8 +385,7 @@ class CredentialTypeService {
     }
 
     /**
-     *
-     * @param contextUrl eg: did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980
+     * @param contextUrl eg: did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential (service id)
      * @param shortType eg: MyCredentialType
      */
     public async getCredentialTypeByContextUrl(contextUrl: string, shortType?: string): Promise<DataOrError<CredentialType>> {
@@ -324,12 +439,13 @@ class CredentialTypeService {
             const credentialsTypesCollection = dbService.getClient().db().collection<CredentialType>(CREDENTIAL_TYPES_COLLECTION);
 
             let credentialTypes = await credentialsTypesCollection.find({
-                keywords: {
-                    $regex: new RegExp(search, "i")
-                }
-                /* $text: {
-                    $search: search
-                } */
+                $or: [
+                    {
+                        keywords: {
+                            $regex: new RegExp(search, "i")
+                        }
+                    }
+                ]
             }).limit(30).sort({ "lastMonthStats.totalUsers": -1, "lastMonthStats.totalCredentials": -1 }).toArray();
             return dataOrErrorData(credentialTypes);
         } catch (err) {

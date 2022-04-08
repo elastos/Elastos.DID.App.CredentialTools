@@ -1,10 +1,17 @@
 import { Clipboard } from '@angular/cdk/clipboard';
-import { Component, Input } from '@angular/core';
+import { Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import moment from 'moment';
+import Prism from "prismjs";
+import { FieldType, ObjectField } from 'src/app/model/build/field';
 import { CredentialType } from 'src/app/model/credentialtype';
-import { CredentialsService, PropertyType, PropertyWithType } from 'src/app/services/credentials.service';
+import { BuildPageParams } from 'src/app/pages/build/build.component';
+import { AuthService } from 'src/app/services/auth.service';
+import { BuildService } from 'src/app/services/build.service';
+import { CredentialsService } from 'src/app/services/credentials.service';
+
+type Mode = "listing" | "details";
 
 @Component({
   selector: 'credential-type',
@@ -12,6 +19,8 @@ import { CredentialsService, PropertyType, PropertyWithType } from 'src/app/serv
   styleUrls: ['./credentialtype.component.scss']
 })
 export class CredentialTypeComponent {
+  @ViewChild('propertiesCode') propertiesCode: ElementRef<HTMLElement>;
+
   public _credentialType: CredentialType = null;
 
   @Input()
@@ -21,15 +30,18 @@ export class CredentialTypeComponent {
   }
 
   @Input()
-  public showView: boolean = true;
+  public mode: Mode = "listing";
 
   // Pre-computed model
-  public properties: PropertyWithType[] = [];
+  private rootObject: ObjectField = null;
+  public propertiesSourceCode: string = null;
 
   constructor(
     private clipboard: Clipboard,
     private _snackBar: MatSnackBar,
     private router: Router,
+    private authService: AuthService,
+    private builderService: BuildService,
     private credentialsService: CredentialsService
   ) { }
 
@@ -37,11 +49,38 @@ export class CredentialTypeComponent {
    * Precompute / get some data ready after receiving a new credentialType value
    */
   private prepareModel() {
-    this.properties = this.getCredentialTypeMainProperties();
+    this.rootObject = this.builderService.extractObjectFieldFromCredentialType(this._credentialType);
+    this.propertiesSourceCode = this.getPropertiesSourceCode(this.rootObject);
+
+    setTimeout(() => {
+      Prism.highlightElement(this.propertiesCode.nativeElement);
+    }, 500);
   }
 
-  private getCredentialTypeMainProperties(): PropertyWithType[] {
-    return this.credentialsService.getUsablePropertiesWithTypes(this._credentialType);
+  private getPropertiesSourceCode(root: ObjectField, parent: ObjectField = null, indentLevel = 0): string {
+    let indent = "  ".repeat(indentLevel);
+    let childrenIndent = "  ".repeat(indentLevel + 1);
+
+    let code = "";
+    if (!parent) // In sub-object or not?
+      code = indent;
+
+    code += "{" + (root.children.length === 0 ? "" : "\n");
+
+    for (let prop of root.children) {
+      if (prop.type !== FieldType.OBJECT)
+        code += childrenIndent + "\"" + prop.name + "\": \"" + this.builderService.getFieldTypeInfo(prop.type).jsonLdType + "\"\n";
+      else {
+        code += childrenIndent + "\"" + prop.name + "\": " + this.getPropertiesSourceCode(prop as ObjectField, prop as ObjectField, indentLevel + 1);
+      }
+    }
+    code += (root.children.length >= 0 ? indent : "") + "}\n"; // } on the same line as its {, or not
+
+    return code;
+  }
+
+  public hasProperties(): boolean {
+    return this.propertiesSourceCode != null;
   }
 
   public getFormattedDate(timestamp: number): string {
@@ -79,11 +118,8 @@ export class CredentialTypeComponent {
     }
   }
 
-  public getDisplayablePropertyType(type: PropertyType): string {
-    switch (type) {
-      case PropertyType.STRING: return "String";
-      default: return "";
-    }
+  public getDisplayablePropertyType(type: FieldType): string {
+    return this.builderService.getFieldTypeInfo(type).displayableType;
   }
 
   public copyShortType() {
@@ -107,5 +143,45 @@ export class CredentialTypeComponent {
         shortType: this._credentialType.shortType
       }
     });
+  }
+
+  /**
+   * Opens this type in the builder for editing and possibly overwriting of a previous
+   * version.
+   */
+  public editType() {
+    let queryParams: BuildPageParams = {
+      mode: "edit",
+      context: this._credentialType.context,
+      shortType: this._credentialType.shortType
+    };
+
+    this.router.navigate(["/build"], {
+      queryParams
+    });
+  }
+
+  /**
+   * Opens this type in the builder to create a new type, using the same format as the current type
+   * to not restart the new type from scratch.
+   */
+  public cloneType() {
+    let queryParams: BuildPageParams = {
+      mode: "clone",
+      context: this._credentialType.context,
+      shortType: this._credentialType.shortType
+    };
+
+    this.router.navigate(["/build"], {
+      queryParams
+    });
+  }
+
+  /**
+   * Tells if the currently signed in user if the owner of this credential type.
+   */
+  public userIsOwner(): boolean {
+    return this._credentialType && this._credentialType.elastosEIDChain &&
+      this._credentialType.elastosEIDChain.publisher === this.authService.signedInDID();
   }
 }

@@ -5,6 +5,7 @@ import * as jsonld from "jsonld";
 import { NodeObject } from 'jsonld';
 import { Url } from 'jsonld/jsonld-spec';
 import { prettyPrintJson } from 'pretty-print-json';
+import { mostRecentPayload } from 'src/app/model/credentialtype';
 import { BuildService } from 'src/app/services/build.service';
 import { CredentialsService } from 'src/app/services/credentials.service';
 import diplomaCredential from "src/assets/samples/credentials/diploma.json";
@@ -228,7 +229,7 @@ export class VerifyComponent {
             resolve({
               contextUrl: null,
               documentUrl: url,
-              document: credentialTypeData ? credentialTypeData.contextPayload : null
+              document: credentialTypeData ? mostRecentPayload(credentialTypeData) : null
             });
           }
           else {

@@ -106,19 +106,19 @@ router.post('/credentialtype/issue', authMiddleware, async (req, res) => {
  */
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 router.post('/credentialtype/register', authMiddleware, async (req, res) => {
-    let did = req.user.did;
-    let { id, type } = req.body;
+    //let did = req.user.did;
+    let { serviceId } = req.body;
 
-    if (!id || !type) {
-        return apiError(res, invalidParamError("id or type is missing"));
+    if (!serviceId) {
+        return apiError(res, invalidParamError("serviceId is missing"));
     }
 
-    let [error] = await credentialTypeService.registerEIDCredentialType(did, id, type);
+    let [error, credentialType] = await credentialTypeService.registerEIDCredentialType(serviceId);
 
     if (hasError(error))
         return apiError(res, convertedError(error));
 
-    res.json();
+    res.json(credentialType);
 });
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises

@@ -1,0 +1,20 @@
+<div class="field" *ngFor="let field of rootObject.children">
+  <mat-form-field class="search-form-field" appearance="fill">
+    <mat-label>Field name</mat-label>
+    <input matInput type="text" [(ngModel)]="field.name" [name]="field.name" autocomplete="off"
+      (input)="fieldNameChanged(field,$event.target)">
+  </mat-form-field>
+  <span class="type">{{ buildService.getFieldTypeInfo(field.type).displayableType }}</span>
+  <button mat-mini-fab color="primary" (click)="deleteField(field)">
+    <mat-icon>delete</mat-icon>
+  </button>
+
+  <!-- Sub object  -->
+  <fieldobj [object]="fieldAsSubObject(field)" *ngIf="fieldIsSubObject(field)" (onDeleteField)="onDeleteField($event)"
+    (onAddField)="onAddField($event)" (onFieldNameChanged)="onFieldNameChanged($event)" class="sub-object"></fieldobj>
+</div>
+
+<!-- Add field -->
+<div>
+  <button mat-stroked-button (click)="addField()">New field</button>
+</div>

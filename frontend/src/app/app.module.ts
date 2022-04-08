@@ -27,6 +27,7 @@ import { AppComponent } from './app.component';
 import { ComponentsModule } from './components/module';
 import { AddFieldSheetComponent } from './pages/build/addfield/addfield.component';
 import { BuildComponent } from './pages/build/build.component';
+import { FieldObjectComponent } from './pages/build/fieldobj/fieldobj.component';
 import { HomeComponent } from './pages/home/home.component';
 import { LoginComponent } from './pages/login/login.component';
 import { TypeDetailsComponent } from './pages/typedetails/typedetails.component';
@@ -42,6 +43,9 @@ import { VerifyComponent } from './pages/verify/verify.component';
     LoginComponent,
     VerifyComponent,
     TypeDetailsComponent,
+
+    // UI components
+    FieldObjectComponent,
 
     // Sheets
     AddFieldSheetComponent

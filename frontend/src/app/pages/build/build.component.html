@@ -5,36 +5,58 @@
     <!-- Credential type -->
     <mat-form-field class="search-form-field" appearance="fill">
       <mat-label>Credential type name</mat-label>
-      <input matInput type="text" [(ngModel)]="credentialType" name="credentialType" autocomplete="off"
-        (input)="onCredentialTypeChanged($event.target)">
+      <input matInput type="text" [(ngModel)]="shortType" name="shortType" autocomplete="off"
+        (input)="onCredentialTypeChanged($event.target)" [disabled]="buildPageMode === 'edit'">
     </mat-form-field>
 
     <!-- Fields -->
-    <div *ngFor="let field of fields">
-      <mat-form-field class="search-form-field" appearance="fill">
-        <mat-label>Field name</mat-label>
-        <input matInput type="text" [(ngModel)]="field.name" [name]="field.name" autocomplete="off"
-          (input)="onFieldNameChanged(field,$event.target)">
-      </mat-form-field>
-      {{field.type}}
-      <button mat-mini-fab color="primary" (click)="deleteField(field)">
-        <mat-icon>delete</mat-icon>
-      </button>
-    </div>
-
-    <!-- Add fields -->
-    <div>
-      <button mat-stroked-button (click)="openAddField()">New field</button>
+    <div class="fields">
+      <fieldobj [object]="rootObject" (onDeleteField)="onDeleteField($event)" (onAddField)="onAddField($event)"
+        (onFieldNameChanged)="onFieldNameChanged($event)">
+      </fieldobj>
+      <!--
+      <div *ngFor=" let field of fields">
+        <mat-form-field class="search-form-field" appearance="fill">
+          <mat-label>Field name</mat-label>
+          <input matInput type="text" [(ngModel)]="field.name" [name]="field.name" autocomplete="off"
+            (input)="onFieldNameChanged(field,$event.target)">
+        </mat-form-field>
+        {{field.type}}
+        <button mat-mini-fab color="primary" (click)="deleteField(field)">
+          <mat-icon>delete</mat-icon>
+        </button>
+    </div> -->
     </div>
   </div>
   <div class="preview">
     <h2>Generated credential type preview</h2>
-    <div class="code">
+
+    <div *ngIf="!wasPublished" class="publish-commands">
+      Publish this credential type:
+      <button mat-raised-button color="accent" (click)="publishCredentialType()" [disabled]="!buildDataIsValid()"
+        *ngIf="!publishing">Publish</button>
+      <mat-spinner *ngIf="publishing"></mat-spinner>
+      <div class="info" *ngIf="publishing">Please confirm in your identity wallet</div>
+    </div>
+
+    <div *ngIf="wasPublished">
+      Great, the credential type was published.
+      <button mat-raised-button color="accent" (click)="viewCredentialType()">View credential details</button>
+    </div>
+
+    <div *ngIf="validationErrorMessage" class="error-message">{{ validationErrorMessage }}</div>
+
+    <div class="code" *ngIf="buildDataIsValid()">
       <pre [innerHtml]="codePreviewHtml">
       </pre>
     </div>
-    Publish this credential type: <button mat-raised-button color="accent"
-      (click)="publishCredentialType()">Publish</button>
+
+    <div class="info" *ngIf="buildDataIsValid()">
+      The above code is auto-generated and displayed as reference only.
+      Don't mind its apparent complexity, everything you need to know to create credentials based on this
+      type are the context url, the short type name and the properties to use. All of that can be found
+      from the credential type details screen.
+    </div>
   </div>
 </div>
 

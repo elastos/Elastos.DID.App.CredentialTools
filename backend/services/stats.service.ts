@@ -120,11 +120,12 @@ class StatsService {
 
             // Get this type from the database.
             let [error, existingCredentialType] = await credentialTypeService.getCredentialTypeByTypeWithContext(type.context, type.shortType);
-            if (hasError(error)) {
-                // TODO: if this is a EID chain type that we don't know, we should fetch it and register it
-                // into our local collection (cache), as this was probably published by someone else not using
-                // this tool.
-                console.error("not found")
+            if (hasError(error) || existingCredentialType === null) {
+                console.error("Credential type not found for stats", type.context, type.shortType);
+
+                // Auto-insert discovered credential types in case it was published by another tool
+                let serviceId = credentialTypeService.contextToServiceId(type.context);
+                await credentialTypeService.registerEIDCredentialType(serviceId);
             }
             else {
                 let users: { [userId: string]: true } = {}; // Simple map to count UNIQUE users
@@ -216,7 +217,7 @@ class StatsService {
                 credTypeStats.lastCreated = lastCreated.unix();
                 credTypeStats.lastUsed = lastUsed.unix();
 
-                console.log("credTypeStats", type, credTypeStats)
+                //console.log("credTypeStats", type, credTypeStats)
 
                 // Now that the stats are built, update the database entry
                 await dbService.getClient().db().collection(CREDENTIAL_TYPES_COLLECTION).updateOne({
