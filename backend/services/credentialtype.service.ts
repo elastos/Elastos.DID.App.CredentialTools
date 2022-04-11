@@ -53,13 +53,93 @@ type PreloadedCredentialTypeInfo = {
 const PRELOADED_CREDENTIAL_TYPES: PreloadedCredentialTypeInfo[] = [
     // W3C
     { context: "https://www.w3.org/2018/credentials/v1", type: "VerifiableCredential" },
-    // Elastos
+
+    // Elastos - Base
     { context: "https://ns.elastos.org/credentials/v1", type: "SelfProclaimedCredential" },
     { context: "https://ns.elastos.org/credentials/v1", type: "SensitiveCredential" },
     { context: "https://ns.elastos.org/credentials/displayable/v1", type: "DisplayableCredential" },
     { context: "https://ns.elastos.org/credentials/context/v1", type: "ContextDefCredential" },
-    { context: "https://ns.elastos.org/credentials/social/v1", type: "SocialCredential" }
+
+    // Elastos - Profile
+    { context: "https://ns.elastos.org/credentials/profile/nationality/v1", type: "NationalityCredential" },
+    { context: "https://ns.elastos.org/credentials/profile/gender/v1", type: "GenderCredential" },
+    { context: "https://ns.elastos.org/credentials/profile/url/v1", type: "URLCredential" },
+    { context: "https://ns.elastos.org/credentials/profile/description/v1", type: "DescriptionCredential" },
+    { context: "https://ns.elastos.org/credentials/profile/gender/v1", type: "GenderCredential" },
+    { context: "https://ns.elastos.org/credentials/profile/avatar/v1", type: "AvatarCredential" },
+    { context: "https://ns.elastos.org/credentials/profile/name/v1", type: "NameCredential" },
+    { context: "https://ns.elastos.org/credentials/profile/email/v1", type: "EmailCredential" },
+
+    // Elastos - Wallet
+    { context: "https://ns.elastos.org/credentials/wallet/v1", type: "WalletCredential" },
+
+    // Elastos - Social
+    { context: "https://ns.elastos.org/credentials/social/twitter/v1", type: "TwitterCredential" },
+    { context: "https://ns.elastos.org/credentials/social/tumblr/v1", type: "TumblrCredential" },
+    { context: "https://ns.elastos.org/credentials/social/wechat/v1", type: "WechatCredential" },
+    { context: "https://ns.elastos.org/credentials/social/facebook/v1", type: "FacebookCredential" },
+    { context: "https://ns.elastos.org/credentials/social/telegram/v1", type: "TelegramCredential" },
+    { context: "https://ns.elastos.org/credentials/social/weibo/v1", type: "WeiboCredential" },
+    { context: "https://ns.elastos.org/credentials/social/instagram/v1", type: "InstagramCredential" },
+    { context: "https://ns.elastos.org/credentials/social/linkedin/v1", type: "LinkedinCredential" },
+    { context: "https://ns.elastos.org/credentials/social/qq/v1", type: "QQCredential" }
 ];
+
+
+type BuiltInTypeDescription = {
+    context: string;
+    type: string;
+    description: string;
+}
+
+const builtInDescriptions: BuiltInTypeDescription[] = [
+    {
+        context: "https://www.w3.org/2018/credentials/v1",
+        type: "VerifiableCredential",
+        description: "This is the base type for all verifiable credentials. All credentials have to implement at least this type, but there are no specific properties for it."
+    },
+    {
+        context: "https://ns.elastos.org/credentials/displayable/v1",
+        type: "DisplayableCredential",
+        description: "This custom elastos foundation type is used as a standardized way to better display credentials using an icon, a title and a description. When a credential implements those properties, it will be displayed in a better way in identity wallets."
+    },
+    {
+        context: "https://ns.elastos.org/credentials/context/v1",
+        type: "ContextDefCredential",
+        description: "This is a special credential, used by developers (and by this toolbox) to store newly created credential types on the identity chain. Standard user credentials usually don't use this type."
+    },
+    {
+        context: "https://ns.elastos.org/credentials/v1",
+        type: "SelfProclaimedCredential",
+        description: "This type is usually used to inform that a credential was self-created, meaning that a user has created the credential for himself, probably in his identity wallet (eg: name, birth date...)."
+    },
+    {
+        context: "https://ns.elastos.org/credentials/v1",
+        type: "SensitiveCredential",
+        description: "This sensitive credential type is useful to inform that user should pay attention - meaning, be careful to not share it with everyone - to the implementing credential. For instance, social security number, credit card number... Identity wallets usually show a specific visual indicator for such credentials."
+    },
+    {
+        context: "https://ns.elastos.org/credentials/social/v1",
+        type: "SocialCredential",
+        description: "This credential context contains several properties such as telegram or wechat, that can be used independently in credentials to describe social network accounts."
+    },
+    {
+        context: "https://ns.elastos.org/credentials/email/v1",
+        type: "EmailCredential",
+        description: "Standard type that describes email credentials."
+    },
+    {
+        context: "https://ns.elastos.org/credentials/profile/v1",
+        type: "ProfileCredential",
+        description: "This credential context contains several properties such as name or gender, that can be used independently in credentials to describe a user, a person."
+    },
+    {
+        context: "https://ns.elastos.org/credentials/wallet/v1",
+        type: "WalletCredential",
+        description: "This credential type allows creating credentials with wallet addresses. Most fields are optional and can be used to describe the wallet blockchain, address, address type, balance, public key, etc."
+    },
+];
+
 
 /**
  * NOTE: we have 2 kinds of credential type origins: standard HTTPS urls such as
@@ -86,7 +166,8 @@ class CredentialTypeService {
         //  Launch all requests in parrallel to save time, await all promises.
         let promises: Promise<void>[] = [];
         for (let info of PRELOADED_CREDENTIAL_TYPES) {
-            promises.push(this.upsertPreloadedType(info));
+            //promises.push(this.upsertPreloadedType(info));
+            await this.upsertPreloadedType(info); // Don't flood the server with too many parrallel requests
         }
 
         await Promise.all(promises);
@@ -103,9 +184,12 @@ class CredentialTypeService {
                 "Accept": "application/json"
             }
         });
-        let contextJson = await response.json() as JSONObject;
 
-        await this.upsertCredentialType(info.context, info.type, contextJson);
+        if (response && response.status >= 200 && response.status < 400) {
+            let contextJson = await response.json() as JSONObject;
+
+            await this.upsertCredentialType(info.context, info.type, contextJson);
+        }
     }
 
     /**
@@ -147,9 +231,9 @@ class CredentialTypeService {
      * @param id Unique short credential identifier used to target this DID this credential. Eg: DiplomaCredential4504564
      * @param type User friendly credential type name
      * @param credentialTypePayload JSON payload for the credential subject. Represents the JSON-LD definition of the credential type.
-     * @returns
+     * @param description A short description made by the credential type creator (user) to tell others what it is about
      */
-    public async issueCredentialType(userDid: string, id: string, type: string, credentialTypePayload: JSONObject): Promise<DataOrError<string>> {
+    public async issueCredentialType(userDid: string, id: string, type: string, credentialTypePayload: JSONObject, description: string): Promise<DataOrError<string>> {
         console.log("issueCredentialType", userDid, id, credentialTypePayload);
 
         try {
@@ -165,7 +249,8 @@ class CredentialTypeService {
                 .typeWithContext("DisplayableCredential", "https://ns.elastos.org/credentials/displayable/v1")
                 .properties(
                     {
-                        ...credentialTypePayload,
+                        definition: credentialTypePayload,
+                        description,
                         displayable: {
                             title: `${type}`,
                             description: "Credential descriptor for developers to use as credential type in applications",
@@ -183,7 +268,7 @@ class CredentialTypeService {
         }
     }
 
-    public async upsertCredentialType(contextUrl: string, shortType: string, credentialTypePayload: JSONObject, publisherDid?: string): Promise<DataOrError<CredentialType>> {
+    public async upsertCredentialType(contextUrl: string, shortType: string, credentialTypePayload: JSONObject, description = "", publisherDid?: string): Promise<DataOrError<CredentialType>> {
         logger.info("Upserting credential type", contextUrl, shortType, publisherDid);
 
         try {
@@ -194,6 +279,10 @@ class CredentialTypeService {
             // Append context and short type to searcheable terms
             keywords.push(contextUrl);
             keywords.push(shortType);
+
+            // If known, add the ability to search by publisher DID too
+            if (publisherDid)
+                keywords.push(publisherDid);
 
             let existingCredentialType = await credentialsTypesCollection.findOne({
                 context: contextUrl,
@@ -215,6 +304,7 @@ class CredentialTypeService {
                 let insertQuery: any = {
                     context: contextUrl,
                     shortType: shortType,
+                    description,
                     contextPayloads: [{
                         insertDate: now,
                         payload: JSON.stringify(credentialTypePayload)
@@ -265,18 +355,15 @@ class CredentialTypeService {
                         },
                     },
                     $set: {
+                        description, // Update description with the newest value
                         keywords // Update keywords with most recent credential context data
                     }
                 });
             }
 
-            console.log("aaaa", credentialTypeMongoId)
-
             let upsertedCredentialType = await credentialsTypesCollection.findOne({
                 _id: credentialTypeMongoId
             });
-
-            console.log("bbbb", credentialTypeMongoId, upsertedCredentialType)
 
             return dataOrErrorData(upsertedCredentialType);
         } catch (err) {
@@ -375,9 +462,18 @@ class CredentialTypeService {
             let contextUrl = `did://elastos/${didIdentifierOnly}/${shortType}`;
 
             // Find the context definition in the credential subject of this VC
-            let contextPayload = vc.getSubject().getProperties();
+            let definitionPayload = vc.getSubject().getProperties();
+            if ("definition" in definitionPayload) {
+                // If there is a description, save it too
+                let description = "";
+                if ("description" in definitionPayload && typeof definitionPayload["description"] === "string")
+                    description = <string>definitionPayload["description"];
 
-            return this.upsertCredentialType(contextUrl, shortType, contextPayload, publisherDid);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                return this.upsertCredentialType(contextUrl, shortType, <any>definitionPayload["definition"], description, publisherDid);
+            }
+
+            return invalidParamError(`Context payload not found in DID document`);
         } catch (err) {
             logger.error(err);
             return serverError('server error');
@@ -426,6 +522,7 @@ class CredentialTypeService {
             const credentialsTypesCollection = dbService.getClient().db().collection<CredentialType>(CREDENTIAL_TYPES_COLLECTION);
 
             let credentialType = await credentialsTypesCollection.findOne({ context, shortType });
+            this.applyBuiltInDescriptionsToTypes([credentialType]);
 
             return dataOrErrorData(credentialType);
         } catch (err) {
@@ -447,11 +544,41 @@ class CredentialTypeService {
                     }
                 ]
             }).limit(30).sort({ "lastMonthStats.totalUsers": -1, "lastMonthStats.totalCredentials": -1 }).toArray();
+
+            this.applyBuiltInDescriptionsToTypes(credentialTypes);
+
             return dataOrErrorData(credentialTypes);
         } catch (err) {
             logger.error(err);
             return serverError('server error');
         }
+    }
+
+    /**
+     * Checks if some of the given types have no description and have a built-in description,
+     * in which case the built-in description is applied.
+     */
+    private applyBuiltInDescriptionsToTypes(credentialTypes: CredentialType[]) {
+        if (!credentialTypes)
+            return;
+
+        credentialTypes.forEach(ct => {
+            if (ct && !ct.description) {
+                ct.description = this.getBuiltInCredentialTypeDescription(ct);
+            }
+        })
+    }
+
+    /**
+     * For convenience, some credential types (essentially https ones) have hardcoded descriptions
+     * for now.
+     */
+    public getBuiltInCredentialTypeDescription(credentialType: CredentialType): string {
+        let builtInDescription = builtInDescriptions.find(bid => bid.context === credentialType.context && bid.type === credentialType.shortType);
+        if (!builtInDescription)
+            return null;
+
+        return builtInDescription.description;
     }
 }
 

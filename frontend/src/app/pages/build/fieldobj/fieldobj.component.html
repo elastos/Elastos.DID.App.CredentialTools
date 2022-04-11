@@ -4,7 +4,7 @@
     <input matInput type="text" [(ngModel)]="field.name" [name]="field.name" autocomplete="off"
       (input)="fieldNameChanged(field,$event.target)">
   </mat-form-field>
-  <span class="type">{{ buildService.getFieldTypeInfo(field.type).displayableType }}</span>
+  <span class="type">{{ field.getFieldTypeInfo().displayableType }}</span>
   <button mat-mini-fab color="primary" (click)="deleteField(field)">
     <mat-icon>delete</mat-icon>
   </button>

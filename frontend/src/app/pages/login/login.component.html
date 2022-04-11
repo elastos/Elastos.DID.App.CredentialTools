@@ -4,7 +4,8 @@
 <div class="content" role="main">
   <h2>Please sign in with your DID to continue</h2>
   <div class="card-container">
-    <button mat-stroked-button (click)="signIn()">Sign in with Elastos DID</button>
+    <button *ngIf="!signingIn" mat-stroked-button (click)="signIn()">Sign in with Elastos DID</button>
+    <mat-spinner *ngIf="signingIn"></mat-spinner>
   </div>
 
   <Clouds></Clouds>

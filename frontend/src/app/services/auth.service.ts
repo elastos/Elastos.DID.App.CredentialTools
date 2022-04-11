@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
+import { VerifiablePresentation } from '@elastosfoundation/did-js-sdk/typings';
 import { DID } from "@elastosfoundation/elastos-connectivity-sdk-js";
 import jwtDecode from 'jwt-decode';
 import { User } from '../model/user';
@@ -61,7 +62,7 @@ export class AuthService {
       await this.connectivityService.getEssentialsConnector().disconnectWalletConnect();
 
     const didAccess = new DID.DIDAccess();
-    let presentation;
+    let presentation: VerifiablePresentation;
 
     console.log("Trying to sign in using the connectivity SDK");
     try {
@@ -77,40 +78,45 @@ export class AuthService {
       return;
     }
 
-    console.log("url", `${process.env.NG_APP_API_URL}/api/v1/login`)
-
     if (presentation) {
       const did = presentation.getHolder().getMethodSpecificId();
-      fetch(`${process.env.NG_APP_API_URL}/api/v1/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(presentation.toJSON())
-        }).then(response => response.json()).then(data => {
-          if (data.code === 200) {
-            const token = data.data;
 
-            localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+      await new Promise<void>(resolve => {
+        fetch(`${process.env.NG_APP_API_URL}/api/v1/login`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(presentation.toJSON())
+          }).then(response => response.json()).then(data => {
+            if (data.code === 200) {
+              const token = data.data;
 
-            this.user = jwtDecode(token);
-            console.log("Sign in: setting user to:", this.user);
+              localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
 
-            if (this.postAuthRoute) {
-              this.router.navigate([this.postAuthRoute]);
-              this.postAuthRoute = null;
+              this.user = jwtDecode(token);
+              console.log("Sign in: setting user to:", this.user);
+
+              resolve();
+
+              if (this.postAuthRoute) {
+                this.router.navigate([this.postAuthRoute]);
+                this.postAuthRoute = null;
+              }
+              else {
+                this.router.navigate(['home']);
+              }
+            } else {
+              console.log(data);
+              resolve();
             }
-            else {
-              this.router.navigate(['home']);
-            }
-          } else {
-            console.log(data);
-          }
-        }).catch((error) => {
-          console.log(error);
-          //showToast(`Failed to call the backend API. Check your connectivity and make sure ${api.url} is reachable`, "error");
-        })
+          }).catch((error) => {
+            console.log(error);
+            //showToast(`Failed to call the backend API. Check your connectivity and make sure ${api.url} is reachable`, "error");
+            resolve();
+          })
+      });
     }
   }
 

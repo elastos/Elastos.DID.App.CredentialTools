@@ -85,13 +85,13 @@ router.get('/currentUser', (req, res) => {
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 router.post('/credentialtype/issue', authMiddleware, async (req, res) => {
     let did = req.user.did;
-    let { id, type, credentialType } = req.body;
+    let { id, type, credentialType, description } = req.body;
 
-    if (!id || !type || !credentialType) {
-        return apiError(res, invalidParamError("id, type or credentialType is missing"));
+    if (!id || !type || !credentialType || !description) {
+        return apiError(res, invalidParamError("id, type, credentialType or description is missing"));
     }
 
-    let [error, data] = await credentialTypeService.issueCredentialType(did, id, type, credentialType)
+    let [error, data] = await credentialTypeService.issueCredentialType(did, id, type, credentialType, description);
 
     if (hasError(error))
         return apiError(res, convertedError(error));
@@ -132,6 +132,9 @@ router.get('/credentialTypeByContextUrl', async (req, res) => {
     if (hasError(error))
         return apiError(res, convertedError(error));
 
+    if (!data)
+        return apiError(res, invalidParamError(`Credential type ${contextUrl} ${shortType} does not exist`));
+
     res.json(data);
 });
 
@@ -159,5 +162,16 @@ router.get('/credentialtypes', async (req, res) => {
 router.post('/statistics/', async (req, res) => {
     res.json(await statsService.handleIncomingStats(req.body));
 });
+
+/*******************
+ **** RESOURCES ****
+ *******************/
+
+/* router.get('/assets/did/representativeicon', (req, res) => {
+    let did = req.query.did;
+
+    // TODO: get icon from cache if existing, or fetch it from hive using hive script url first.
+    res.download("../../assets/default-app.png");
+}); */
 
 export default router;

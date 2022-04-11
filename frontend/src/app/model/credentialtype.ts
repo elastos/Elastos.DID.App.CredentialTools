@@ -18,6 +18,7 @@ export type CredentialType = {
   medium: CredentialTypeMedium; // Storage location for this type
   context: string; // Context url. One type can be defined only in one context url
   shortType: string; // Short type name, must be defined inside the context
+  description: string; // A short description made by the credential type creator (user) to tell others what it is about
   contextPayloads: ContextPayloadEntry[];
   keywords: string[]; // List of extracted keywords, used to search inside credentials.
   creationDate: number; // Timestamp at which this type was created (null for http contexts)

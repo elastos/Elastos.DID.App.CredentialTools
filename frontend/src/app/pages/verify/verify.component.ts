@@ -221,10 +221,6 @@ export class VerifyComponent {
           if (url.startsWith("did")) {
             console.log("Loader is resolving url using our DID loader", url);
 
-            // NOTE: this is temporary while we don't store credentials on chain. Replace this with
-            // chain resolving later.
-            // Convert urls such as: did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
-            // into local toolbox API call: http://apiurl/api/v1/credentialTypeByUrl?url=did://elastos/insTmxdDDuS9wHHfeYD1h5C2onEHh3D8Vq/DiplomaCredential7562980#DiplomaCredential
             let credentialTypeData = await this.credentialsService.fetchCredentialType(url);
             resolve({
               contextUrl: null,

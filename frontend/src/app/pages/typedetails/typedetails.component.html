@@ -1,9 +1,9 @@
 <Toolbar></Toolbar>
 
-<div class="content">
+<div class="main">
   <credential-type [credentialType]="credentialType" mode="details"></credential-type>
 
-  <div class="create-credential-sample" *ngIf="credentialType">
+  <div class="create-credential-sample" *ngIf="credentialType && canShowCreateSampleCode()">
     <div class="heading">Create a credential - Sample code - DID JS SDK</div>
     <div class="info">
       Use the following typescript code to generate a credential that uses the above type. Also refer to
@@ -14,7 +14,7 @@
     <pre><code #createCredentialSample class="language-typescript">{{getCreateCredentialSampleSourceCode()}}</code></pre>
   </div>
 
-  <div class="request-credential-sample" *ngIf="credentialType">
+  <div class="request-credential-sample" *ngIf="credentialType && canShowRequestSampleCode()">
     <div class="heading">Request a credential - Sample code - Connectivity JS SDK</div>
     <div class="info">
       Use the following typescript code to ask users to provide any credential of the given abot type, through their

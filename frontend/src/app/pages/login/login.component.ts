@@ -7,9 +7,13 @@ import { AuthService } from 'src/app/services/auth.service';
   styleUrls: ['./login.component.scss']
 })
 export class LoginComponent {
+  public signingIn = false;
+
   constructor(private authService: AuthService) { }
 
-  public signIn() {
-    this.authService.signIn();
+  public async signIn() {
+    this.signingIn = true;
+    await this.authService.signIn();
+    this.signingIn = false;
   }
 }

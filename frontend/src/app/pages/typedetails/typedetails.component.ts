@@ -49,8 +49,11 @@ export class TypeDetailsComponent implements OnInit {
         this.credentialType = ct;
 
         setTimeout(() => {
-          Prism.highlightElement(this.createCredentialSample.nativeElement);
-          Prism.highlightElement(this.requestCredentialSample.nativeElement);
+          if (this.createCredentialSample)
+            Prism.highlightElement(this.createCredentialSample.nativeElement);
+
+          if (this.requestCredentialSample)
+            Prism.highlightElement(this.requestCredentialSample.nativeElement);
         }, 500);
       });
     });
@@ -73,13 +76,15 @@ export class TypeDetailsComponent implements OnInit {
       code += `   .property("${field.name}", "Your value here")\n`;
     }
 
-    code += `   // Optional: implement the standard DisplayableCredential for better display in wallets\n`;
-    code += `   .typeWithContext("DisplayableCredential", "https://ns.elastos.org/credentials/displayable/v1")\n`;
-    code += `   .property("displayable", {\n`;
-    code += `       icon: "https://icon.that.users.will.see.png",\n`;
-    code += `       title: "Title that users will see",\n`;
-    code += `       description: "Short description that users will see"\n`;
-    code += `   })\n`;
+    if (this.credentialType.shortType !== "DisplayableCredential") {
+      code += `   // Optional: implement the standard DisplayableCredential for better display in wallets\n`;
+      code += `   .typeWithContext("DisplayableCredential", "https://ns.elastos.org/credentials/displayable/v1")\n`;
+      code += `   .property("displayable", {\n`;
+      code += `       icon: "https://icon.that.users.will.see.png",\n`;
+      code += `       title: "Title that users will see",\n`;
+      code += `       description: "Short description that users will see"\n`;
+      code += `   })\n`;
+    }
 
     code += `   // Sign\n`;
     code += `   .seal("didStorePassword");`;
@@ -99,5 +104,26 @@ export class TypeDetailsComponent implements OnInit {
     code += `});`;
 
     return code;
+  }
+
+  /**
+   * Tells if we want to display the sample code to creade credentials of this type.
+   */
+  public canShowCreateSampleCode(): boolean {
+    // Exclusion list
+    return [
+      "VerifiableCredential"
+    ].indexOf(this.credentialType.shortType) < 0;
+  }
+
+  /**
+   * Tells if we want to display the sample code to request credentials of this type.
+   */
+  public canShowRequestSampleCode(): boolean {
+    // Exclusion list - doesn't make sense to "request" such credentials
+    return [
+      "VerifiableCredential",
+      "DisplayableCredential"
+    ].indexOf(this.credentialType.shortType) < 0;
   }
 }

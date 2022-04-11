@@ -21,8 +21,7 @@
  */
 
 import { Injectable } from '@angular/core';
-import { v4 as uuidv4 } from "uuid";
-import { Field, FieldType, FieldTypeInfo, fieldTypes, newEmptyObjectField, ObjectField } from '../model/build/field';
+import { Field, FieldType, getFieldTypeInfoFromJsonLdType, newEmptyObjectField, ObjectField } from '../model/build/field';
 import { ContextPayload } from '../model/context';
 import { CredentialType, mostRecentPayload } from '../model/credentialtype';
 import { AuthService } from './auth.service';
@@ -43,7 +42,7 @@ export class BuildService {
 
   /**
    * From a credential short type (eg: MyCredType), generates a unique ID to use in published VCs.
-   * If unicitySuffix is not passed, a new random ID is generated and returned. 
+   * If unicitySuffix is not passed, a new random ID is generated and returned.
    * If unicitySuffix is passed, it is reused.
    */
   public generateCredentialId(shortType: string, unicitySuffix?: string): { credentialId: string, unicitySuffix: string } {
@@ -68,12 +67,15 @@ export class BuildService {
    * Checks some inputs to make sure everything is ready for json generation.
    * In case something is wrong, the first error met is returned as a displayable error message.
    */
-  public validateBuildData(credentialType: string, object: ObjectField): string {
+  public validateBuildData(credentialType: string, object: ObjectField, description: string): string {
     if (credentialType === null || credentialType === "")
       return "Your credential type should have a name";
 
     if (hasSpaces(credentialType))
       return "Don't use spaces in the credential type name";
+
+    if (!description)
+      return "Give a short description to tell other developers about this type format";
 
     return this.validatefield(object, true);
   }
@@ -168,7 +170,7 @@ export class BuildService {
     if (field.type !== FieldType.OBJECT) {
       json[field.name] = {
         "@id": id,
-        "@type": this.getFieldTypeInfo(field.type).jsonLdType
+        "@type": field.getFieldTypeInfo().jsonLdType
       }
     }
     else {
@@ -185,10 +187,6 @@ export class BuildService {
         this.writeField(json[field.name]["@context"], child, resolveUrl, idMap);
       }
     }
-  }
-
-  public getFieldTypeInfo(fieldType: FieldType): FieldTypeInfo {
-    return fieldTypes.find(ft => ft.type === fieldType);
   }
 
   /**
@@ -224,35 +222,53 @@ export class BuildService {
     for (let key of payloadKeys) {
       let item = json[key];
 
+      let field: Field = null;
+
       // For now, only consider items that are format like this: field: { @id:"", @type:"xsd:string" }
       if (typeof item === "object") {
-        if ("@type" in item) {
-          switch (item["@type"]) {
-            case "xsd:string":
-            case "xsd:boolean":
-            case "xsd:number":
-              // Simple field
-              rootObject.children.push({
-                parent: rootObject,
-                uiId: uuidv4(),
-                name: key,
-                type: this.getFieldTypeInfoFromJsonLdType(item["@type"]).type
-              });
-              break;
-            case "@id":
-              if ("@context" in item) {
-                rootObject.children.push(this.extractObjectFieldFromCredentialTypeJson(item["@context"], rootObject, key as string));
-              }
-              break;
-          }
+        // If there is a @context sub-object, consider this as an object, (no more detailed type)
+        if ("@context" in item) {
+          field = this.extractObjectFieldFromCredentialTypeJson(item["@context"], rootObject, key as string);
         }
+        else if ("@type" in item || "@id" in item) {
+          field = new Field(rootObject, key, null);
+
+          let targetEntryAsType: string;
+          if ("@type" in item) {
+            // If there is a @type, use this @type value as a type to display to users
+            if (item["@type"] !== "@id")
+              targetEntryAsType = item["@type"];
+            else
+              targetEntryAsType = item["@id"];
+          }
+          else {
+            // No type, just an @id, so we use this as a "display type". Such as "schema:email".
+            // This is actually the id that should be resolved to the schema.org JSONLD context, but for simplicity
+            // we just let users find the real type by themselves. This isa rrare case for now, only for https
+            // contexts. All elastos DID contexts use simple xsd types.
+            targetEntryAsType = item["@id"];
+          }
+
+          let typeInfo = getFieldTypeInfoFromJsonLdType(targetEntryAsType);
+          field.type = typeInfo ? typeInfo.type : FieldType.CUSTOM;
+          field.customType = {
+            type: FieldType.CUSTOM,
+            displayableType: targetEntryAsType,
+            jsonLdType: targetEntryAsType
+          };
+        }
+      }
+
+      if (field) {
+
+        if ("@container" in item && item["@container"] === "@list") {
+          field.canBeAList = true;
+        }
+
+        rootObject.children.push(field);
       }
     }
 
     return rootObject;
-  }
-
-  public getFieldTypeInfoFromJsonLdType(jsonLdType: string): FieldTypeInfo {
-    return fieldTypes.find(ft => ft.jsonLdType === jsonLdType);
   }
 }

@@ -7,7 +7,8 @@
     "start": "node --loader ts-node/esm --experimental-specifier-resolution=node app.ts"
   },
   "dependencies": {
-    "@elastosfoundation/did-js-sdk": "^2.2.4",
+    "@elastosfoundation/did-js-sdk": "^2.2.5",
+    "@elastosfoundation/hive-js-sdk": "^2.5.1",
     "bignumber.js": "^9.0.1",
     "body-parser": "^1.19.0",
     "cookie-parser": "~1.4.4",

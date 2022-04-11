@@ -8,7 +8,6 @@ import { CredentialType } from 'src/app/model/credentialtype';
 import { AuthService } from 'src/app/services/auth.service';
 import { BuildService } from 'src/app/services/build.service';
 import { CredentialsService } from 'src/app/services/credentials.service';
-import { v4 as uuidv4 } from 'uuid';
 import { TypeDetailsPageParams } from '../typedetails/typedetails.component';
 import { AddFieldSheetComponent } from './addfield/addfield.component';
 
@@ -36,7 +35,8 @@ export class BuildComponent implements OnInit {
   private credentialId: string = null;
   private credentialTypeUnicitySuffix: string = null; // Suffix for credential ids to make them unique based on their short type
 
-  public shortType: string = "DiplomaCredential";
+  public shortType: string = "";
+  public description: string = "";
   public rootObject: ObjectField = newEmptyObjectField();
 
   public buildPageMode: BuildPageMode = null;
@@ -79,13 +79,9 @@ export class BuildComponent implements OnInit {
   private preparePageForNewType() {
     console.log("Preparing builder for a new type");
 
-    // Create a dummy field to start with
-    this.rootObject.children.push({
-      parent: this.rootObject,
-      uiId: uuidv4(),
-      name: "stub",
-      type: FieldType.STRING,
-    });
+    this.rootObject.children.push();
+
+    this.description = "";
 
     this.updateCodePreview();
   }
@@ -105,6 +101,7 @@ export class BuildComponent implements OnInit {
       let builderInfo = this.buildService.extractBuilderInfoFromExistingType(ct);
       this.rootObject = builderInfo.rootObject;
       this.shortType = builderInfo.credentialTypeName;
+      this.description = ct.description;
 
       this.updateCodePreview();
     }
@@ -125,6 +122,7 @@ export class BuildComponent implements OnInit {
       let builderInfo = this.buildService.extractBuilderInfoFromExistingType(ct);
       this.rootObject = builderInfo.rootObject;
       this.shortType = ""; // Let user enter his own type name
+      this.description = ct.description;
 
       this.updateCodePreview();
     }
@@ -150,12 +148,7 @@ export class BuildComponent implements OnInit {
    * Creates a new field of the given type and adds it to the given containing object.
    */
   private createField(type: FieldType, containingObject: ObjectField) {
-    let newField: Field = {
-      parent: containingObject,
-      uiId: uuidv4(),
-      name: "myCustomField",
-      type: type
-    };
+    let newField = new Field(containingObject, "myCustomField", type);
 
     if (type === FieldType.OBJECT) {
       (newField as ObjectField).children = [];
@@ -178,8 +171,12 @@ export class BuildComponent implements OnInit {
     this.updateCodePreview();
   }
 
+  public onDescriptionChanged(target: any) {
+    this.updateCodePreview();
+  }
+
   public buildDataIsValid(): boolean {
-    return !this.buildService.validateBuildData(this.shortType, this.rootObject);
+    return !this.buildService.validateBuildData(this.shortType, this.rootObject, this.description);
   }
 
   private getContextUrl(): string {
@@ -191,7 +188,7 @@ export class BuildComponent implements OnInit {
     this.credentialId = credentialId;
     this.credentialTypeUnicitySuffix = unicitySuffix;
 
-    this.validationErrorMessage = this.buildService.validateBuildData(this.shortType, this.rootObject);
+    this.validationErrorMessage = this.buildService.validateBuildData(this.shortType, this.rootObject, this.description);
     if (this.validationErrorMessage)
       return;
 
@@ -204,7 +201,7 @@ export class BuildComponent implements OnInit {
 
   public async publishCredentialType() {
     this.publishing = true;
-    let publishedType = await this.credentialsService.publishCredential(this.credentialId, this.shortType, this.credentialTypeJson);
+    let publishedType = await this.credentialsService.publishCredential(this.credentialId, this.shortType, this.credentialTypeJson, this.description);
     if (publishedType) {
       this.wasPublished = true;
       this.publishedCredentialType = publishedType;

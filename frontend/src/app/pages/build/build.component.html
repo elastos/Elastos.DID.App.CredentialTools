@@ -1,7 +1,9 @@
 <Toolbar></Toolbar>
 
-<div class="content">
+<div class="main">
   <div class="editor">
+    <h1>Introduction</h1>
+
     <!-- Credential type -->
     <mat-form-field class="search-form-field" appearance="fill">
       <mat-label>Credential type name</mat-label>
@@ -9,7 +11,15 @@
         (input)="onCredentialTypeChanged($event.target)" [disabled]="buildPageMode === 'edit'">
     </mat-form-field>
 
+    <!-- Short description -->
+    <mat-form-field class="search-form-field" appearance="fill">
+      <mat-label>Short description - tell other what this type is about</mat-label>
+      <input matInput type="text" [(ngModel)]="description" name="description" autocomplete="off"
+        (input)="onDescriptionChanged($event.target)">
+    </mat-form-field>
+
     <!-- Fields -->
+    <h1>Format</h1>
     <div class="fields">
       <fieldobj [object]="rootObject" (onDeleteField)="onDeleteField($event)" (onAddField)="onAddField($event)"
         (onFieldNameChanged)="onFieldNameChanged($event)">

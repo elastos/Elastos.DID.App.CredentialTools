@@ -4,28 +4,34 @@ export enum FieldType {
   STRING,
   BOOLEAN,
   NUMBER,
-  OBJECT
+  OBJECT,
+  CUSTOM
 }
 
-export type Field = {
-  parent: ObjectField; // Containing parent
-  uiId: string; // Random identitier just for the UI, not related to generation
-  name: string; // Used defined name
-  type: FieldType; // Data type
+export class Field {
+  public uiId: string; // Random identitier just for the UI, not related to generation
+  public canBeAList = false; // Some fields can contain either a single value, or an array of values of this type
+
+  constructor(
+    public parent: ObjectField, // Containing parent
+    public name: string, // Used defined name
+    public type: FieldType, // Data type
+    public customType?: FieldTypeInfo // For custom (FieldType.CUSTOM) types, use this as a replacement
+  ) {
+    this.uiId = uuidv4();
+  }
+
+  public getFieldTypeInfo(): FieldTypeInfo {
+    return this.customType || getFieldTypeInfo(this.type);
+  }
 }
 
-export type ObjectField = Field & {
-  children: Field[];
+export class ObjectField extends Field {
+  public children: Field[] = [];
 }
 
 export const newEmptyObjectField = (): ObjectField => {
-  return {
-    parent: null,
-    name: null,
-    uiId: uuidv4(),
-    type: FieldType.OBJECT,
-    children: []
-  }
+  return new ObjectField(null, null, FieldType.OBJECT);
 }
 
 export type FieldTypeInfo = {
@@ -56,3 +62,11 @@ export const fieldTypes: FieldTypeInfo[] = [
     jsonLdType: "xsd:object"
   }
 ];
+
+export const getFieldTypeInfo = (fieldType: FieldType): FieldTypeInfo => {
+  return fieldTypes.find(ft => ft.type === fieldType);
+}
+
+export const getFieldTypeInfoFromJsonLdType = (jsonLdType: string): FieldTypeInfo => {
+  return fieldTypes.find(ft => ft.jsonLdType === jsonLdType);
+}

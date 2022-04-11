@@ -74,8 +74,8 @@ class DIDService {
 
     return {
       document,
-      name: this.getRepresentativeOwnerName(document),
-      icon: null
+      name: null, // TODO - do this on front end - do cleanup //this.getRepresentativeOwnerName(document),
+      icon: null // TODO - do this on front end - do cleanup
     };
   }
 
@@ -85,7 +85,7 @@ class DIDService {
   * - A "fullname", if the did document represents a regular user
   * - An "app title", if the did document is an application DID
   */
-  public getRepresentativeOwnerName(document: DIDDocument): string {
+  /* public getRepresentativeOwnerName(document: DIDDocument): string {
     let name: string = null;
 
     // Try to find suitable credentials in the document - start with the application credential type
@@ -117,7 +117,7 @@ class DIDService {
     }
 
     return name;
-  }
+  } */
 }
 
 export const didService = new DIDService();

@@ -45,15 +45,18 @@ export class CredentialsService {
    *
    * @param credentialId Eg: DiplomaCredential4791459
    * @param shortType Eg: DiplomaCredential
+   * @param credentialTypePayload the credential type payload (with @context at first level)
+   * @param description A short description made by the credential type creator (user) to tell others what it is about
    */
-  public async publishCredential(credentialId: string, shortType: string, credentialTypePayload: unknown): Promise<CredentialType> {
+  public async publishCredential(credentialId: string, shortType: string, credentialTypePayload: unknown, description: string): Promise<CredentialType> {
     // First step: ask the backend to generate the credential containing the credential type.
     let response = await this.httpService.postBackEndAuthenticatedJson<string>(
       "/api/v1/credentialtype/issue",
       {
         id: credentialId,
         type: shortType,
-        credentialType: credentialTypePayload
+        credentialType: credentialTypePayload,
+        description
       }
     );
 
