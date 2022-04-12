@@ -1,8 +1,9 @@
 import { DID, DIDURL, Issuer, JSONObject } from "@elastosfoundation/did-js-sdk";
 import fetch from "node-fetch";
 import logger from "../logger";
+import { getBuiltInTypeDescription } from "../model/builtindescriptions";
 import { CredentialType, CredentialTypeMedium } from "../model/credentialtype";
-import { DataOrError, dataOrErrorData, invalidParamError, serverError, stateError } from "../model/dataorerror";
+import { DataOrError, dataOrErrorData, invalidParamError, serverError } from "../model/dataorerror";
 import { dbService } from "./db.service";
 import { didService } from "./did.service";
 
@@ -85,62 +86,6 @@ const PRELOADED_CREDENTIAL_TYPES: PreloadedCredentialTypeInfo[] = [
     { context: "https://ns.elastos.org/credentials/social/qq/v1", type: "QQCredential" }
 ];
 
-
-type BuiltInTypeDescription = {
-    context: string;
-    type: string;
-    description: string;
-}
-
-const builtInDescriptions: BuiltInTypeDescription[] = [
-    {
-        context: "https://www.w3.org/2018/credentials/v1",
-        type: "VerifiableCredential",
-        description: "This is the base type for all verifiable credentials. All credentials have to implement at least this type, but there are no specific properties for it."
-    },
-    {
-        context: "https://ns.elastos.org/credentials/displayable/v1",
-        type: "DisplayableCredential",
-        description: "This custom elastos foundation type is used as a standardized way to better display credentials using an icon, a title and a description. When a credential implements those properties, it will be displayed in a better way in identity wallets."
-    },
-    {
-        context: "https://ns.elastos.org/credentials/context/v1",
-        type: "ContextDefCredential",
-        description: "This is a special credential, used by developers (and by this toolbox) to store newly created credential types on the identity chain. Standard user credentials usually don't use this type."
-    },
-    {
-        context: "https://ns.elastos.org/credentials/v1",
-        type: "SelfProclaimedCredential",
-        description: "This type is usually used to inform that a credential was self-created, meaning that a user has created the credential for himself, probably in his identity wallet (eg: name, birth date...)."
-    },
-    {
-        context: "https://ns.elastos.org/credentials/v1",
-        type: "SensitiveCredential",
-        description: "This sensitive credential type is useful to inform that user should pay attention - meaning, be careful to not share it with everyone - to the implementing credential. For instance, social security number, credit card number... Identity wallets usually show a specific visual indicator for such credentials."
-    },
-    {
-        context: "https://ns.elastos.org/credentials/social/v1",
-        type: "SocialCredential",
-        description: "This credential context contains several properties such as telegram or wechat, that can be used independently in credentials to describe social network accounts."
-    },
-    {
-        context: "https://ns.elastos.org/credentials/email/v1",
-        type: "EmailCredential",
-        description: "Standard type that describes email credentials."
-    },
-    {
-        context: "https://ns.elastos.org/credentials/profile/v1",
-        type: "ProfileCredential",
-        description: "This credential context contains several properties such as name or gender, that can be used independently in credentials to describe a user, a person."
-    },
-    {
-        context: "https://ns.elastos.org/credentials/wallet/v1",
-        type: "WalletCredential",
-        description: "This credential type allows creating credentials with wallet addresses. Most fields are optional and can be used to describe the wallet blockchain, address, address type, balance, public key, etc."
-    },
-];
-
-
 /**
  * NOTE: we have 2 kinds of credential type origins: standard HTTPS urls such as
  * https://ns.elastos.org/credentials/v1#SensitiveCredential, but also EID chain types published
@@ -156,11 +101,10 @@ class CredentialTypeService {
     constructor() { }
 
     public async setup(): Promise<void> {
-        // Upsert credential types that we want to preload
-        await this.upsertPreloadedTypes();
+        // Nothing for now
     }
 
-    private async upsertPreloadedTypes(): Promise<void> {
+    public async upsertPreloadedTypes(): Promise<void> {
         logger.info("Refreshing preloaded types, fetching context urls");
 
         //  Launch all requests in parrallel to save time, await all promises.
@@ -188,7 +132,10 @@ class CredentialTypeService {
         if (response && response.status >= 200 && response.status < 400) {
             let contextJson = await response.json() as JSONObject;
 
-            await this.upsertCredentialType(info.context, info.type, contextJson);
+            // Use a built-in description if we have one.
+            let description = getBuiltInTypeDescription(info.context, info.type);
+
+            await this.upsertCredentialType(info.context, info.type, contextJson, description);
         }
     }
 
@@ -269,7 +216,7 @@ class CredentialTypeService {
     }
 
     public async upsertCredentialType(contextUrl: string, shortType: string, credentialTypePayload: JSONObject, description = "", publisherDid?: string): Promise<DataOrError<CredentialType>> {
-        logger.info("Upserting credential type", contextUrl, shortType, publisherDid);
+        logger.info("Upserting credential type", contextUrl, shortType, description, publisherDid);
 
         try {
             const credentialsTypesCollection = dbService.getClient().db().collection<CredentialType>(CREDENTIAL_TYPES_COLLECTION);
@@ -279,6 +226,10 @@ class CredentialTypeService {
             // Append context and short type to searcheable terms
             keywords.push(contextUrl);
             keywords.push(shortType);
+
+            // Append description words to keywords
+            if (description && description !== "")
+                keywords.push(...description.split(' '));
 
             // If known, add the ability to search by publisher DID too
             if (publisherDid)
@@ -341,19 +292,24 @@ class CredentialTypeService {
                 // Make sure that we don't have this payload yet
                 let payloadStr = JSON.stringify(credentialTypePayload);
                 let hasThisPayload = !!existingCredentialType.contextPayloads.find(p => p.payload === payloadStr);
-                if (hasThisPayload) {
-                    return stateError("Credential type already exists - " + contextUrl + " - " + shortType);
+                if (!hasThisPayload) {
+                    // Payload unknown - add it first
+                    await credentialsTypesCollection.updateOne({
+                        _id: credentialTypeMongoId
+                    }, {
+                        $push: {
+                            contextPayloads: {
+                                insertDate: now,
+                                payload: payloadStr
+                            },
+                        }
+                    });
                 }
 
+                // Update some meta information
                 await credentialsTypesCollection.updateOne({
                     _id: credentialTypeMongoId
                 }, {
-                    $push: {
-                        contextPayloads: {
-                            insertDate: now,
-                            payload: payloadStr
-                        },
-                    },
                     $set: {
                         description, // Update description with the newest value
                         keywords // Update keywords with most recent credential context data
@@ -420,7 +376,7 @@ class CredentialTypeService {
      * @param serviceId Eg: did:elastos:abcdef#MyCred
      */
     public async registerEIDCredentialType(serviceId: string): Promise<DataOrError<CredentialType>> {
-        console.log("registerCredentialType", serviceId);
+        logger.info("Trying to register EID credential type for service", serviceId);
 
         try {
             let publisherDid = this.serviceIdToPublisherDid(serviceId);
@@ -429,7 +385,7 @@ class CredentialTypeService {
             // Make sure this credential exists on chain, and get the payload
             let checkedDID = new DID(publisherDid);
 
-            console.log(`Resolving on chain DID ${checkedDID} to check if the credential type credential exists`);
+            logger.info(`Resolving on chain DID ${checkedDID} to check if the credential type credential exists`);
             let resolvedDocument = await checkedDID.resolve(true);
             if (!resolvedDocument) {
                 return invalidParamError('DID not found on the EID chain');
@@ -522,7 +478,7 @@ class CredentialTypeService {
             const credentialsTypesCollection = dbService.getClient().db().collection<CredentialType>(CREDENTIAL_TYPES_COLLECTION);
 
             let credentialType = await credentialsTypesCollection.findOne({ context, shortType });
-            this.applyBuiltInDescriptionsToTypes([credentialType]);
+            //this.applyBuiltInDescriptionsToTypes([credentialType]);
 
             return dataOrErrorData(credentialType);
         } catch (err) {
@@ -545,7 +501,7 @@ class CredentialTypeService {
                 ]
             }).limit(30).sort({ "lastMonthStats.totalUsers": -1, "lastMonthStats.totalCredentials": -1 }).toArray();
 
-            this.applyBuiltInDescriptionsToTypes(credentialTypes);
+            //this.applyBuiltInDescriptionsToTypes(credentialTypes);
 
             return dataOrErrorData(credentialTypes);
         } catch (err) {
@@ -558,28 +514,16 @@ class CredentialTypeService {
      * Checks if some of the given types have no description and have a built-in description,
      * in which case the built-in description is applied.
      */
-    private applyBuiltInDescriptionsToTypes(credentialTypes: CredentialType[]) {
-        if (!credentialTypes)
-            return;
+    /*  private applyBuiltInDescriptionsToTypes(credentialTypes: CredentialType[]) {
+         if (!credentialTypes)
+             return;
 
-        credentialTypes.forEach(ct => {
-            if (ct && !ct.description) {
-                ct.description = this.getBuiltInCredentialTypeDescription(ct);
-            }
-        })
-    }
-
-    /**
-     * For convenience, some credential types (essentially https ones) have hardcoded descriptions
-     * for now.
-     */
-    public getBuiltInCredentialTypeDescription(credentialType: CredentialType): string {
-        let builtInDescription = builtInDescriptions.find(bid => bid.context === credentialType.context && bid.type === credentialType.shortType);
-        if (!builtInDescription)
-            return null;
-
-        return builtInDescription.description;
-    }
+         credentialTypes.forEach(ct => {
+             if (ct && !ct.description) {
+                 ct.description = this.getBuiltInTypeDescription(ct.context, ct.shortType);
+             }
+         })
+     } */
 }
 
 export const credentialTypeService = new CredentialTypeService();

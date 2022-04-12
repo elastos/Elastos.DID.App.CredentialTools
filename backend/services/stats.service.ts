@@ -114,15 +114,15 @@ class StatsService {
             }
         }
 
+        logger.info(`Stats aggregation have found ${targetCredentialTypes.length} types to process`)
+
         // Iterate all recently owned types and rebuild their stat field in the credentials types database
         for (let type of targetCredentialTypes) {
-            console.log("processing type", type);
+            logger.info(`Processing type with context: [ ${type.context} ], short type: [ ${type.shortType} ]`);
 
             // Get this type from the database.
             let [error, existingCredentialType] = await credentialTypeService.getCredentialTypeByTypeWithContext(type.context, type.shortType);
             if (hasError(error) || existingCredentialType === null) {
-                console.error("Credential type not found for stats", type.context, type.shortType);
-
                 // Auto-insert discovered credential types in case it was published by another tool
                 let serviceId = credentialTypeService.contextToServiceId(type.context);
                 await credentialTypeService.registerEIDCredentialType(serviceId);
@@ -205,6 +205,13 @@ class StatsService {
 
                 // Populate app / issuers info
                 for (let app of credTypeStats.topUsingApps) {
+                    let info = await didService.getDIDWithInfo(app.did);
+                    if (info) {
+                        app.name = info.name;
+                        app.icon = info.icon;
+                    }
+                }
+                for (let app of credTypeStats.topIssuers) {
                     let info = await didService.getDIDWithInfo(app.did);
                     if (info) {
                         app.name = info.name;

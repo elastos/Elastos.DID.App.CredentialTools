@@ -6,6 +6,7 @@ import moment from 'moment';
 import Prism from "prismjs";
 import { FieldType, ObjectField } from 'src/app/model/build/field';
 import { CredentialType } from 'src/app/model/credentialtype';
+import { Issuer, UsingApp } from 'src/app/model/stats';
 import { BuildPageParams } from 'src/app/pages/build/build.component';
 import { AuthService } from 'src/app/services/auth.service';
 import { BuildService } from 'src/app/services/build.service';
@@ -227,5 +228,13 @@ export class CredentialTypeComponent {
     return [
       "VerifiableCredential",
     ].indexOf(this._credentialType.shortType) < 0;
+  }
+
+  public getTopUsingApps(): UsingApp[] {
+    return this._credentialType.lastMonthStats.topUsingApps.slice(0, 4); // Show X apps max
+  }
+
+  public getTopIssuers(): Issuer[] {
+    return this._credentialType.lastMonthStats.topIssuers.slice(0, 4); // Show X apps max
   }
 }

@@ -52,11 +52,15 @@ class DIDService {
 
   public async getDIDWithInfo(did: string): Promise<DIDDocumentWithInfo> {
     if (did in this.documentsWithInfoCache) {
+      console.log("getDIDWithInfo cache ", did, this.documentsWithInfoCache[did])
+
       return this.documentsWithInfoCache[did];
     }
     else {
       let docWithInfo = await this.fetchDIDWithInfo(did);
       this.documentsWithInfoCache[did] = docWithInfo;
+      console.log("getDIDWithInfo no cache ", did, docWithInfo)
+
       return docWithInfo;
     }
   }
@@ -74,8 +78,8 @@ class DIDService {
 
     return {
       document,
-      name: null, // TODO - do this on front end - do cleanup //this.getRepresentativeOwnerName(document),
-      icon: null // TODO - do this on front end - do cleanup
+      name: this.getRepresentativeOwnerName(document),
+      icon: null // TODO
     };
   }
 
@@ -85,7 +89,7 @@ class DIDService {
   * - A "fullname", if the did document represents a regular user
   * - An "app title", if the did document is an application DID
   */
-  /* public getRepresentativeOwnerName(document: DIDDocument): string {
+  public getRepresentativeOwnerName(document: DIDDocument): string {
     let name: string = null;
 
     // Try to find suitable credentials in the document - start with the application credential type
@@ -117,7 +121,7 @@ class DIDService {
     }
 
     return name;
-  } */
+  }
 }
 
 export const didService = new DIDService();

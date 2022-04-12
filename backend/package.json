@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node app.ts"
+    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node app.ts",
+    "import-types": "node --loader ts-node/esm --experimental-specifier-resolution=node scripts/import_builtin_types.ts"
   },
   "dependencies": {
     "@elastosfoundation/did-js-sdk": "^2.2.5",
