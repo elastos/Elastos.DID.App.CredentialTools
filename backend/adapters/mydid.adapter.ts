@@ -3,7 +3,7 @@ import logger from '../logger';
 
 export class MyDIDAdapter extends DefaultDIDAdapter {
     constructor() {
-        let resolverUrl = "https://api.trinity-tech.cn/eid";
+        let resolverUrl = "https://api.trinity-tech.io/eid";
         logger.info("Using Trinity-Tech DID adapter with resolver url:", resolverUrl)
         super(resolverUrl);
     }
